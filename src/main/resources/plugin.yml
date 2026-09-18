@@ -1,0 +1,6 @@
+name: Advent
+version: '${version}'
+
+main: cd.arnett.advent.Advent
+api-version: '26.3'
+load: POSTWORLD
