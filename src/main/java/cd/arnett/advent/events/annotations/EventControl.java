@@ -1,4 +1,4 @@
-package cd.arnett.advent.events.types.annotations;
+package cd.arnett.advent.events.annotations;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -8,4 +8,6 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Marks methods as ones that provide Cattamand controls to the event
  */
-public @interface EventControl { }
+public @interface EventControl {
+
+}

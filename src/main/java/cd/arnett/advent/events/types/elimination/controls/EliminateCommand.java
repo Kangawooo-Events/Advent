@@ -1,53 +1,33 @@
 package cd.arnett.advent.events.types.elimination.controls;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.events.EventBase;
-import cd.arnett.advent.events.types.elimination.Elimination;
+import cd.arnett.advent.commandTree.EventTypeCattamand;
+import cd.arnett.advent.events.types.elimination.EliminationModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
-import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
-import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.NamespacedKey;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 
-public class EliminateCommand extends Cattamand {
+public class EliminateCommand extends EventTypeCattamand<EliminationModule> {
+
 
     @Override
-    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        List<Player> targets = ArgumentHelper.getPlayersFromArgs("players", context);
-        NamespacedKey eventName = context.getArgument("event", NamespacedKey.class);
+    public int execute(CommandContext<CommandSourceStack> context, EliminationModule eventModule) throws CommandSyntaxException {
+        String targetName = context.getArgument("player", String.class);
+        OfflinePlayer player = Bukkit.getOfflinePlayer(targetName);
 
-        EventBase event = EventManager.getEvent(eventName);
-
-        if(event == null)
-        {
-            ArgumentHelper.getPlayerSender(context).sendMessage(
-                    MiniMessage.miniMessage().deserialize("<red> No Event of name <bold>\""
-                    + eventName + "\"</bold> exists")
-            );
-            return 0;
-        }
-        if(!(event instanceof Elimination elimEvent))
-        {
-            ArgumentHelper.getPlayerSender(context).sendMessage(
-                    MiniMessage.miniMessage().deserialize("<red> Event of name <bold>\""
-                            + eventName + "\"</bold> Is not an Elimination Event")
-            );
-            return 0;
-        }
-
-        targets.forEach(elimEvent::eliminate);
+        eventModule.eliminate(player.getUniqueId());
 
         ArgumentHelper.getPlayerSender(context).sendMessage(
                 MiniMessage.miniMessage().deserialize("<green> Player(s) Eliminated")
         );
-
 
         return 0;
     }
@@ -56,8 +36,16 @@ public class EliminateCommand extends Cattamand {
     public List<? extends Cattarameter> getArguments() {
         return List.of(
                 new Cattarameter(
-                        "players",
-                        ArgumentTypes.players()
+                        "player",
+
+                        StringArgumentType.string(),
+                        (ctx) -> getEventModule(ctx)
+                                .elim.stream().map(
+                                        id -> Bukkit.getOfflinePlayer(id).getName()
+                                ).toList(),
+
+                        null,
+                        false
                 )
         );
     }

@@ -127,13 +127,36 @@ public class EventManager {
     =================================================================================================*/
 
     /**
-     * Registers an event
+     * Registers an event and loads saved yaml from it
      * @param event  event to register
      * @param listeners Listeners to register along with it, DO NOT ALSO REGISTER IN ON ENABLE
      */
     public static void registerEvent(EventBase event, Listener... listeners) {
 
-        registeredEvents.put(event.eventKey(), event);
+        NamespacedKey eventKey = event.eventKey();
+        registeredEvents.put(eventKey, event);
+
+        Advent.logger.info("Reading Event Data for: " + eventKey);
+
+        //get the path to the Menus directory
+        Path eventDataPath = Advent.singleton.getDataFolder()
+                .toPath()
+                .resolve("Events")
+                .resolve(eventKey.getNamespace())
+                .resolve(eventKey.getKey())
+                .resolve("event.yaml");
+
+        //no data to read
+        if(!Files.exists(eventDataPath))
+        {
+            return;
+        }
+
+        //read existing data
+        else
+        {
+            event.readFromYaml(YamlConfiguration.loadConfiguration(eventDataPath.toFile()));
+        }
 
         //register listeners;
         for (Listener listener : listeners)
@@ -305,14 +328,6 @@ public class EventManager {
                 }
             });
         });
-    }
-
-    /**
-     * Reads data from plugin data file PLEASE DO NOT CALL THANK YOU HAVE A NICE DAY
-     */
-    public void readData()
-    {
-
     }
 
     //endregion

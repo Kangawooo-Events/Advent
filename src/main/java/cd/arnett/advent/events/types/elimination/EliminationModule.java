@@ -1,19 +1,23 @@
 package cd.arnett.advent.events.types.elimination;
 
-import cd.arnett.advent.events.types.annotations.EventControl;
+import cd.arnett.advent.events.annotations.EventControl;
+import cd.arnett.advent.events.annotations.TrackedPlayerList;
 import cd.arnett.advent.events.types.elimination.controls.EliminateCommand;
 import cd.arnett.advent.events.types.elimination.controls.InstateCommand;
-import cd.arnett.advent.events.types.winnable.Winnable;
+import cd.arnett.advent.events.types.winnable.WinnableModule;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
-import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 import org.bukkit.entity.Player;
 
 import java.util.*;
 
-public interface Elimination extends Winnable {
+@TrackedPlayerList(EliminationModule.remainingListName)
+@TrackedPlayerList(EliminationModule.eliminatedListName)
+public interface EliminationModule extends WinnableModule {
 
-    HashSet<UUID> remainingPlayers = new HashSet<>();
+    String remainingListName = "remaining";
+    String eliminatedListName = "eliminated";
+
 
     //region Events
 
@@ -22,25 +26,16 @@ public interface Elimination extends Winnable {
     =================================================================================================*/
 
     /**
-     * Called when a player is eliminated, super is what actually does the removal from the remaining player list
+     * Called when a player is eliminated
      * @param eliminatedPlayer
      */
-    @OverridingMethodsMustInvokeSuper
-    default void onEliminate(UUID eliminatedPlayer)
-    {
-        remainingPlayers.remove(eliminatedPlayer);
-    }
+    void onEliminate(UUID eliminatedPlayer);
 
     /**
-     * Called when a player is added to the remaining players,
-     * super is what actually does the adding to the remaining player list, and restoration of player data if
+     * Called when a player is added to the remaining players
      * @param eliminatedPlayer
      */
-    @OverridingMethodsMustInvokeSuper
-    default void onInstate(UUID eliminatedPlayer)
-    {
-        remainingPlayers.remove(eliminatedPlayer);
-    }
+    void onInstate(UUID eliminatedPlayer);
 
 
     //endregion
@@ -58,7 +53,24 @@ public interface Elimination extends Winnable {
      */
     default boolean isPlayerRemaining(UUID playerId)
     {
-        return remainingPlayers.contains(playerId);
+        return getPlayerList(remainingListName).contains(playerId);
+    }
+
+    /**
+     * @return List of player IDs of remain players
+     */
+    default List<UUID> getPlayersRemaining()
+    {
+
+        return List.copyOf(getPlayerList(remainingListName));
+    }
+
+    /**
+     * @return List of player IDs of eliminated player
+     */
+    default List<UUID> getPlayersEliminated()
+    {
+        return List.copyOf(getPlayerList(eliminatedListName));
     }
 
     //region Overloads
@@ -72,7 +84,7 @@ public interface Elimination extends Winnable {
      */
     default boolean isPlayerRemaining(Player player)
     {
-        return remainingPlayers.contains(player.getUniqueId());
+        return getPlayerList(remainingListName).contains(player.getUniqueId());
     }
 
 
@@ -97,6 +109,8 @@ public interface Elimination extends Winnable {
     {
         for (UUID playerId : playerIds)
         {
+            getPlayerList(remainingListName).remove(playerId);
+            getPlayerList(eliminatedListName).add(playerId);
             onEliminate(playerId);
         }
     }
@@ -109,6 +123,8 @@ public interface Elimination extends Winnable {
     {
         for (UUID playerId : playerIds)
         {
+            getPlayerList(remainingListName).add(playerId);
+            getPlayerList(eliminatedListName).remove(playerId);
             onInstate(playerId);
         }
     }
@@ -170,7 +186,5 @@ public interface Elimination extends Winnable {
 
 
     //endregion
-
-
 
 }

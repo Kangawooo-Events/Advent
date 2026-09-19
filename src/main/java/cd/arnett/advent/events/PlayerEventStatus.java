@@ -14,16 +14,11 @@ public enum PlayerEventStatus {
     /**
      * Not registered for the event
      */
-    OMITTED,
+    OMITTED
 
-    /**
-     * Finished taking part in the event
-     * however you want to interpret that, like they won, died, either way they're done
-     */
-    FINISHED;
-
-    public boolean isPlaying()
+    public PlayerEventStatus disconnected()
     {
-        return this == PLAYING || this == FINISHED;
+        return this == PLAYING ? ABSENT : this;
     }
+
 }

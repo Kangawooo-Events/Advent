@@ -1,5 +1,6 @@
 plugins {
     id("java-library")
+    id("com.gradleup.shadow") version "9.4.1"
     id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
@@ -12,6 +13,8 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.+")
     compileOnly("com.github.Kangawooo-Events:Caddamands:v3.A.8")
+    implementation("org.springframework:spring-jcl:6.1.5")
+    implementation("org.springframework:spring-core:6.1.5")
 }
 
 java {

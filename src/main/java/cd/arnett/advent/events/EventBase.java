@@ -1,16 +1,21 @@
 package cd.arnett.advent.events;
 
-import cd.arnett.advent.events.types.annotations.EventControl;
+import cd.arnett.advent.Advent;
+import cd.arnett.advent.events.annotations.*;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
+import com.google.common.reflect.TypeToken;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
-import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 
@@ -21,11 +26,107 @@ import java.util.stream.Collectors;
 public abstract class EventBase {
 
     HashMap<UUID, PlayerEventStatus> registeredPlayers = new HashMap<>();
+    HashMap<Class<? extends Annotation>, ArrayList<Method>> callbacks = new HashMap<>();
+    HashMap<String, ArrayList<UUID>> trackedPlayerLists = new HashMap<>();
+    boolean isActive = false;
+
+    public EventBase() {
+        //fill callbacks
+        loadCallbacks();
+    }
+
+    //region Callbacks
+
+    /*=================================================================================================
+                        -  Callbacks  -
+    =================================================================================================*/
 
     /**
-     * this map is purely here for moderation purposes
+     * Finds all annotated callback functions in this object and registers them for their events
      */
-    HashMap<UUID, String> revokedPlayers = new HashMap<>();
+    void loadCallbacks() {
+        //go through each method to store callbacks (so it doesn't have to search at runtime)
+        for(Method method : getClass().getMethods())
+        {
+            //get annotations of overrided methods filtered by there types
+            Set<Annotation> annotations = AnnotatedElementUtils.findAllMergedAnnotations(method, Set.of(
+                    EventControl.class,
+                    ReadYaml.class,
+                    WriteYaml.class,
+                    OnEventStart.class,
+                    OnEventStop.class
+            ));
+
+            //convert to class set
+            HashSet<Class<? extends Annotation>> annotationClasses = new HashSet<>();
+            annotations.forEach(annotation -> {
+                annotationClasses.add(annotation.annotationType());
+            });
+
+            if(annotationClasses.contains(EventControl.class))
+            {
+                //check that it is the correct return type
+                if(Cattamand.class.isAssignableFrom(method.getReturnType()))
+                {
+                    callbacks.computeIfAbsent(EventControl.class, (_) -> new ArrayList<>()).add(method);
+                }
+            }
+            else if(annotationClasses.contains(ReadYaml.class))
+            {
+                //check that it is the correct parameter type
+                if(YamlConfiguration.class.isAssignableFrom(method.getParameterTypes()[0]))
+                {
+                    callbacks.computeIfAbsent(ReadYaml.class, (_) -> new ArrayList<>()).add(method);
+                }
+            }
+            else if(annotationClasses.contains(WriteYaml.class))
+            {
+                //check that it is the correct return type
+                if(YamlConfiguration.class.isAssignableFrom(method.getReturnType()))
+                {
+                    callbacks.computeIfAbsent(WriteYaml.class, (_) -> new ArrayList<>()).add(method);
+                }
+            }
+            else if(annotationClasses.contains(OnEventStart.class))
+            {
+                callbacks.computeIfAbsent(OnEventStart.class, (_) -> new ArrayList<>()).add(method);
+            }
+            else if(annotationClasses.contains(OnEventStop.class))
+            {
+                callbacks.computeIfAbsent(OnEventStop.class, (_) -> new ArrayList<>()).add(method);
+            }
+        }
+
+        if(getClass().isAnnotationPresent(TrackedPlayerList.class))
+        {
+            TrackedPlayerList[] trackedListAnnotations = getClass().getAnnotationsByType(TrackedPlayerList.class);
+            for(TrackedPlayerList ann : trackedListAnnotations)
+            {
+                trackedPlayerLists.put(ann.value(), new ArrayList<>());
+            }
+        }
+    }
+
+    /**
+     * Invokes callbacks of type
+     * @param type type of callbacks to invoke
+     * @param foreachResult What to do with the result
+     * @param params What parameters to pass
+     */
+    void invokeCallbacks(Class<? extends Annotation> type, Consumer<Object> foreachResult, Object... params)
+    {
+        callbacks.get(type).forEach(method -> {
+            try {
+                if(foreachResult != null)
+                    foreachResult.accept(method.invoke(this, params));
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+
+    //endregion
 
 
     //region Abstract properties
@@ -51,82 +152,92 @@ public abstract class EventBase {
                         -  Controls  -
     =================================================================================================*/
 
+    /**
+     * Call to start event
+     */
+    public void startEvent()
+    {
+        isActive = true;
+        invokeCallbacks(OnEventStart.class, null);
+    }
+
+    /**
+     * Call to stop event
+     */
+    public void stopEvent()
+    {
+        isActive = false;
+        invokeCallbacks(OnEventStop.class, null);
+    }
+
+    /**
+     * Makes a player join the event (Absent -> Playing)
+     * @param player player to add
+     */
+    public void joinEvent(Player player)
+    {
+        registeredPlayers.put(player.getUniqueId(), PlayerEventStatus.PLAYING);
+    }
+
+    /**
+     * removes a player from this event
+     * @param id ID of player to remove
+     */
+    public void removeFromEvent(UUID id)
+    {
+        registeredPlayers.remove(id);
+    }
 
     /**\
      * @return all Cattamand controls provided by the interfaces
      */
     public List<Cattamand> getCommandControls() {
-        ArrayList<Cattamand> controls = new ArrayList<>();
 
-        //go through each method to check for the @EventControl annotation
-        for(Method method : getClass().getMethods())
-        {
-            //check if this method has that annotation and returns a Cattamand List or cattamand
-            if(method.isAnnotationPresent(EventControl.class))
-            {
-                if(List.class.isAssignableFrom(method.getReturnType()))
-                {
-                    //check if it is a list of cattamands
-                    if(method.getGenericReturnType() instanceof ParameterizedType parameterizedType)
-                    {
-                        var types = parameterizedType.getActualTypeArguments();
-                        if(types.length > 0)
-                        {
-                            if(types[0] instanceof Class<?> clazz
-                                    && Cattamand.class.isAssignableFrom(clazz))
-                            {
-                                //it is a list of cattamands so add everything from the return
-                                try {
-                                    controls.addAll((List<Cattamand>)method.invoke(this));
-                                }
-                                catch (Exception e){
-                                    e.printStackTrace();
-                                }
-                            }
-                        }
-                    }
-                }
-                else if(Cattamand.class.isAssignableFrom(method.getReturnType()))
-                {
-                    //it's just a cattamand so add the return
-                    try {
-                        controls.add((Cattamand)method.invoke(this));
-                    }
-                    catch (Exception e){
-                        e.printStackTrace();
-                    }
-                }
+        return callbacks.get(EventControl.class).stream().map(method -> {
+            try {
+                return (Cattamand) method.invoke(this);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException(e);
             }
-        }
+        }).toList();
 
-        return controls;
     }
+
+    //region Overloads
+
 
 
     //endregion
 
-
-
-    //region Abstract Controls
+    //region Events
 
     /*=================================================================================================
-                        -  Abstract Controls  -
+                        -  Events  -
     =================================================================================================*/
 
-
+    /**
+     * Called when the event is started
+     */
+    @OnEventStart
+    public abstract void onEventStart();
 
     /**
-     * Adds a player to this event
-     * @param player player to add
+     * Called when the event is stopped
      */
-    public abstract void addToEvent(Player player);
+    @OnEventStop
+    public abstract void onEventStop();
 
     /**
-     * removes a player from this event
-     * @param player player to remove
+     * Called when a player joins an event
+     * @param player player which was added
      */
-    public abstract void removeFromEvent(Player player);
+    public abstract void onJoinEvent(Player player);
 
+    /**
+     * Called when a player was removed from an event
+     * @param id ID of removed player
+     */
+    public abstract void onRemoveFromEvent(UUID id);
 
 
     //endregion
@@ -151,16 +262,25 @@ public abstract class EventBase {
 
         var stringPlayerMap = playerMap.entrySet().stream().collect(Collectors.toMap(
                 (entry) -> entry.getKey().toString(),
-                (entry) -> entry.getValue().name())
-        );
-
-        var stringRevokedMap = revokedPlayers.entrySet().stream().collect(Collectors.toMap(
-                (entry) -> entry.getKey().toString(),
-                (entry) -> entry.getValue().toString())
+                (entry) -> entry.getValue().disconnected().name())
         );
 
         yaml.set("players", stringPlayerMap);
-        yaml.set("revoked", stringRevokedMap);
+
+        //write modules
+        invokeCallbacks(WriteYaml.class, (result) -> {
+            YamlConfiguration otherYaml = ((YamlConfiguration)result);
+
+            otherYaml.getKeys(false).forEach(key -> {
+                if(!yaml.contains(key))
+                    yaml.set(key, otherYaml.get(key));
+            });
+        }, yaml);
+
+        //write tracked player lists
+        trackedPlayerLists.forEach((key, list) -> {
+            yaml.set(key, list.stream().map(UUID::toString).toList());
+        });
 
         return yaml;
     }
@@ -176,9 +296,12 @@ public abstract class EventBase {
             registeredPlayers.put(UUID.fromString(id), PlayerEventStatus.valueOf((String) stat));
         });
 
-        yaml.getConfigurationSection("revoked").getValues(false).forEach((id, name) -> {
-            revokedPlayers.put(UUID.fromString(id), (String) name);
-        });
+        //write tracked player lists
+        trackedPlayerLists.forEach((key, list) ->
+                yaml.getStringList(key).forEach(string -> list.add(UUID.fromString(string)))
+        );
+
+        invokeCallbacks(WriteYaml.class, null, yaml);
     }
 
 
@@ -227,22 +350,18 @@ public abstract class EventBase {
         return registeredPlayers.getOrDefault(id, PlayerEventStatus.OMITTED);
     }
 
-    /**
-     * Says whether a player's registration was revoked
-     * @param id ID of player to check
-     * @return true if they were revoked
-     */
-    public boolean isRevoked(UUID id)
+    public ArrayList<UUID> getTrackedPlayerList(String name)
     {
-        return revokedPlayers.containsKey(id);
+        return trackedPlayerLists.get(name);
     }
+
 
     //region Overloads
 
     //----------= Overloads =-----------------------------------------------------------------------------
 
     /**
-     * Is a player registered to play in this event
+     * Is a player registered to play in this event (overload)
      * @param player Player to check
      * @return Registration status
      */
@@ -252,7 +371,7 @@ public abstract class EventBase {
     }
 
     /**
-     * Is a player registered to play in this event and is of a filtered status
+     * Is a player registered to play in this event and is of a filtered status (overload)
      * @param id Id of Player to check
      * @param filtered Statuses to filter, if a player is not of one of these it is false
      * @return Registration status
@@ -275,7 +394,7 @@ public abstract class EventBase {
     }
 
     /**
-     * @param player Player to check
+     * @param player Player to check (overload)
      * @return Event status of the provided player
      */
     public PlayerEventStatus getStatus(Player player)
@@ -284,15 +403,6 @@ public abstract class EventBase {
     }
 
 
-    /**
-     * Says whether a player's registration was revoked
-     * @param player Player to check
-     * @return true if they were revoked
-     */
-    public boolean isRevoked(Player player)
-    {
-        return isRevoked(player.getUniqueId());
-    }
 
     //endregion
 
@@ -314,7 +424,6 @@ public abstract class EventBase {
     public void register(UUID id)
     {
         registeredPlayers.put(id, PlayerEventStatus.ABSENT);
-        revokedPlayers.remove(id);
     }
 
 
@@ -324,8 +433,8 @@ public abstract class EventBase {
      */
     public void revokeRegistration(UUID id)
     {
-        if(registeredPlayers.get(id).isPlaying())
-            removeFromEvent(Bukkit.getPlayer(id));
+        if(registeredPlayers.get(id) == PlayerEventStatus.PLAYING)
+            removeFromEvent(id);
 
         registeredPlayers.remove(id);
     }
@@ -336,7 +445,7 @@ public abstract class EventBase {
 
 
     /**
-     * Registers a player for this event
+     * Registers a player for this event (overload)
      * @param player Player to register
      */
     public void register(Player player)
@@ -346,7 +455,7 @@ public abstract class EventBase {
 
 
     /**
-     * Revokes Registration from an event (and removes them if they are playing)
+     * Revokes Registration from an event (and removes them if they are playing) (overload)
      * @param player Player to register
      */
     public void revokeRegistration(Player player)
