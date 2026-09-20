@@ -8,4 +8,6 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Marks methods as ones that take a YamlConfiguration and read in data from it
  */
-public @interface ReadYaml { }
+public @interface ReadYaml {
+
+}

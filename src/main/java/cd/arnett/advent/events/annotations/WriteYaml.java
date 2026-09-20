@@ -8,4 +8,6 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Marks methods as ones that return a YamlConfiguration with its data written to it
  */
-public @interface WriteYaml { }
+public @interface WriteYaml {
+
+}

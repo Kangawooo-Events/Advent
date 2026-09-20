@@ -2,8 +2,12 @@ package cd.arnett.advent.events;
 
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.events.annotations.*;
+import cd.arnett.advent.events.annotations.ModuleDataProvider;
+import cd.arnett.advent.events.annotations.ReadYaml;
+import cd.arnett.advent.events.annotations.WriteYaml;
+import cd.arnett.advent.events.annotations.data.PlayerIdArrayList;
+import cd.arnett.advent.events.annotations.data.PlayerIntegerHashMap;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
-import com.google.common.reflect.TypeToken;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -11,7 +15,6 @@ import org.bukkit.entity.Player;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -27,13 +30,55 @@ public abstract class EventBase {
 
     HashMap<UUID, PlayerEventStatus> registeredPlayers = new HashMap<>();
     HashMap<Class<? extends Annotation>, ArrayList<Method>> callbacks = new HashMap<>();
-    HashMap<String, ArrayList<UUID>> trackedPlayerLists = new HashMap<>();
+
+    /**
+     * stores data from modules
+     */
+    HashMap<String, Object> moduleData = new HashMap<>();
+
+    /**
+     * tracks keys to data which are of a special type which get automatic yaml reading and writing
+     */
+    HashMap<Class<? extends Annotation>, ArrayList<String>> automaticDataKeys = new HashMap<>();
+
+
+
     boolean isActive = false;
 
     public EventBase() {
         //fill callbacks
         loadCallbacks();
+        invokeCallbacks(OnInitialize.class, null);
     }
+
+
+    //region Automated Data
+
+    //----------= Automated Data =-----------------------------------------------------------------------------
+
+
+    /**
+     * Set of all annotations to track
+     */
+    static Set<Class<? extends Annotation>> automatedAnnotationTypes = Set.of(
+            PlayerIdArrayList.class,
+            PlayerIntegerHashMap.class
+    );
+
+    /**
+     * A dynamic way to add automated data to the module data, Call BEFORE reading in YAML (OnInitalize)
+     * @param annotation Type of data to add
+     * @param name Name to put the data under
+     * @param data Data to save
+     */
+    public void registerAutomatedData(Class<? extends Annotation> annotation, String name, Object data)
+    {
+        moduleData.put(name, data);
+        automaticDataKeys.computeIfAbsent(annotation, (list) -> new ArrayList<>()).add(name);
+    }
+
+    //endregion
+
 
     //region Callbacks
 
@@ -54,7 +99,9 @@ public abstract class EventBase {
                     ReadYaml.class,
                     WriteYaml.class,
                     OnEventStart.class,
-                    OnEventStop.class
+                    OnEventStop.class,
+                    OnInitialize.class,
+                    ModuleDataProvider.class
             ));
 
             //convert to class set
@@ -95,17 +142,29 @@ public abstract class EventBase {
             {
                 callbacks.computeIfAbsent(OnEventStop.class, (_) -> new ArrayList<>()).add(method);
             }
-        }
-
-        if(getClass().isAnnotationPresent(TrackedPlayerList.class))
-        {
-            TrackedPlayerList[] trackedListAnnotations = getClass().getAnnotationsByType(TrackedPlayerList.class);
-            for(TrackedPlayerList ann : trackedListAnnotations)
+            else if(annotationClasses.contains(OnInitialize.class))
             {
-                trackedPlayerLists.put(ann.value(), new ArrayList<>());
+                callbacks.computeIfAbsent(OnInitialize.class, (_) -> new ArrayList<>()).add(method);
+            }
+            else if(method.isAnnotationPresent(ModuleDataProvider.class))
+            {
+                ModuleDataProvider[] trackedListAnnotations = method.getAnnotationsByType(ModuleDataProvider.class);
+                for(ModuleDataProvider ann : trackedListAnnotations)
+                {
+                    //clone field to data list
+                    try {
+                        moduleData.put(ann.value(), method.invoke(this));
+                        registerAutomaticData(ann.value(), method);
+                    }
+                    catch (Exception e)
+                    {
+                        Advent.logger.warning("Unable to use module data: " + method.getName());
+                    }
+                }
             }
         }
     }
+
 
     /**
      * Invokes callbacks of type
@@ -124,7 +183,6 @@ public abstract class EventBase {
             }
         });
     }
-
 
     //endregion
 
@@ -258,29 +316,23 @@ public abstract class EventBase {
     {
         YamlConfiguration yaml = new YamlConfiguration();
 
+        //write players
         var playerMap = getPlayerStatusMap();
-
         var stringPlayerMap = playerMap.entrySet().stream().collect(Collectors.toMap(
                 (entry) -> entry.getKey().toString(),
                 (entry) -> entry.getValue().disconnected().name())
         );
-
         yaml.set("players", stringPlayerMap);
 
         //write modules
         invokeCallbacks(WriteYaml.class, (result) -> {
-            YamlConfiguration otherYaml = ((YamlConfiguration)result);
+            YamlConfiguration moduleYaml = ((YamlConfiguration)result);
 
-            otherYaml.getKeys(false).forEach(key -> {
+            moduleYaml.getKeys(false).forEach(key -> {
                 if(!yaml.contains(key))
-                    yaml.set(key, otherYaml.get(key));
+                    yaml.set(key, moduleYaml.get(key));
             });
         }, yaml);
-
-        //write tracked player lists
-        trackedPlayerLists.forEach((key, list) -> {
-            yaml.set(key, list.stream().map(UUID::toString).toList());
-        });
 
         return yaml;
     }
@@ -292,16 +344,14 @@ public abstract class EventBase {
     @OverridingMethodsMustInvokeSuper
     public void readFromYaml(YamlConfiguration yaml)
     {
+        //read players
         yaml.getConfigurationSection("players").getValues(false).forEach((id, stat) -> {
             registeredPlayers.put(UUID.fromString(id), PlayerEventStatus.valueOf((String) stat));
         });
 
-        //write tracked player lists
-        trackedPlayerLists.forEach((key, list) ->
-                yaml.getStringList(key).forEach(string -> list.add(UUID.fromString(string)))
-        );
-
+        //read modules
         invokeCallbacks(WriteYaml.class, null, yaml);
+
     }
 
 
@@ -350,9 +400,15 @@ public abstract class EventBase {
         return registeredPlayers.getOrDefault(id, PlayerEventStatus.OMITTED);
     }
 
-    public ArrayList<UUID> getTrackedPlayerList(String name)
+
+    /**
+     * Returns module data for a provided name
+     * @param name Name of list
+     * @return The object stored in moduleData
+     */
+    public Object getModuleData(String name)
     {
-        return trackedPlayerLists.get(name);
+        return moduleData.get(name);
     }
 
 
@@ -464,6 +520,80 @@ public abstract class EventBase {
     }
 
     //endregion
+
+    //endregion
+
+
+    //region Automatic Module Data
+
+    /*=================================================================================================
+                        -  Automatic Module Data  -
+    =================================================================================================*/
+
+
+    /**
+     * Checks for Module data type annotations which we have yaml read and write definitions for already
+     * @param method Method to check
+     */
+    void registerAutomaticData(String key, Method method)
+    {
+        for(Annotation ann : method.getAnnotations())
+        {
+            var annotationClass = ann.getClass();
+            if(automaticDataKeys.containsKey(annotationClass))
+            {
+                automaticDataKeys.computeIfAbsent(
+                        annotationClass,
+                        _ -> new ArrayList<>()
+                ).add(key);
+            }
+        }
+    }
+
+    /**
+     * @return YamlConfiguration with all automatically written saved to it
+     */
+    @WriteYaml
+    YamlConfiguration writeAutomaticData()
+    {
+        YamlConfiguration yaml = new YamlConfiguration();
+
+        automaticDataKeys.get(PlayerIdArrayList.class).forEach(key -> {
+            yaml.set(key, ((ArrayList<UUID>) moduleData.get(key)).stream().map(UUID::toString));
+        });
+
+        automaticDataKeys.get(PlayerIntegerHashMap.class).forEach(key -> {
+            yaml.set(key, ((HashMap<UUID, Integer>) moduleData.get(key)).entrySet().stream().collect(Collectors.toMap(
+                    (entry) -> entry.getKey().toString(),
+                    Map.Entry::getValue)
+            ));
+        });
+
+        return yaml;
+    }
+
+    /**
+     * @param yaml YamlConfiguration to read in automatically handled data
+     */
+    @ReadYaml
+    void readAutomaticData(YamlConfiguration yaml)
+    {
+        //for each data entry of this type
+        automaticDataKeys.get(PlayerIdArrayList.class).forEach(key -> {
+            ArrayList<UUID> list = (ArrayList<UUID>)moduleData.get(key);
+            list.addAll(yaml.getStringList(key).stream().map(UUID::fromString).toList());
+        });
+
+        automaticDataKeys.get(PlayerIntegerHashMap.class).forEach(key -> {
+            HashMap<UUID, Integer> map = (HashMap<UUID, Integer>)moduleData.get(key);
+            yaml.getConfigurationSection(key).getValues(false).forEach((id, value) -> {
+                map.put(UUID.fromString(id), (Integer) value);
+            });
+
+        });
+
+    }
+
 
     //endregion
 

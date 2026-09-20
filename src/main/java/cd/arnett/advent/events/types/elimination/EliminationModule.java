@@ -1,7 +1,8 @@
 package cd.arnett.advent.events.types.elimination;
 
 import cd.arnett.advent.events.annotations.EventControl;
-import cd.arnett.advent.events.annotations.TrackedPlayerList;
+import cd.arnett.advent.events.annotations.ModuleDataProvider;
+import cd.arnett.advent.events.annotations.data.PlayerIdArrayList;
 import cd.arnett.advent.events.types.elimination.controls.EliminateCommand;
 import cd.arnett.advent.events.types.elimination.controls.InstateCommand;
 import cd.arnett.advent.events.types.winnable.WinnableModule;
@@ -11,13 +12,39 @@ import org.bukkit.entity.Player;
 
 import java.util.*;
 
-@TrackedPlayerList(EliminationModule.remainingListName)
-@TrackedPlayerList(EliminationModule.eliminatedListName)
 public interface EliminationModule extends WinnableModule {
 
     String remainingListName = "remaining";
     String eliminatedListName = "eliminated";
 
+    //region Module Data
+
+    /*=================================================================================================
+                        -  Module Data  -
+    =================================================================================================*/
+
+    /**
+     * Provides a list of Remaining players to moduleData
+     */
+    @ModuleDataProvider(remainingListName)
+    @PlayerIdArrayList()
+    default ArrayList<UUID> remainingPlayers()
+    {
+        return new ArrayList<>();
+    }
+
+    /**
+     * Provides a list of Eliminated players to moduleData
+     */
+    @ModuleDataProvider(eliminatedListName)
+    @PlayerIdArrayList()
+    default ArrayList<UUID> eliminatedPlayers()
+    {
+        return new ArrayList<>();
+    }
+
+
+    //endregion
 
     //region Events
 
@@ -53,7 +80,7 @@ public interface EliminationModule extends WinnableModule {
      */
     default boolean isPlayerRemaining(UUID playerId)
     {
-        return getPlayerList(remainingListName).contains(playerId);
+        return getModulePlayerList(remainingListName).contains(playerId);
     }
 
     /**
@@ -62,7 +89,7 @@ public interface EliminationModule extends WinnableModule {
     default List<UUID> getPlayersRemaining()
     {
 
-        return List.copyOf(getPlayerList(remainingListName));
+        return List.copyOf(getModulePlayerList(remainingListName));
     }
 
     /**
@@ -70,7 +97,7 @@ public interface EliminationModule extends WinnableModule {
      */
     default List<UUID> getPlayersEliminated()
     {
-        return List.copyOf(getPlayerList(eliminatedListName));
+        return List.copyOf(getModulePlayerList(eliminatedListName));
     }
 
     //region Overloads
@@ -84,7 +111,7 @@ public interface EliminationModule extends WinnableModule {
      */
     default boolean isPlayerRemaining(Player player)
     {
-        return getPlayerList(remainingListName).contains(player.getUniqueId());
+        return getModulePlayerList(remainingListName).contains(player.getUniqueId());
     }
 
 
@@ -109,8 +136,8 @@ public interface EliminationModule extends WinnableModule {
     {
         for (UUID playerId : playerIds)
         {
-            getPlayerList(remainingListName).remove(playerId);
-            getPlayerList(eliminatedListName).add(playerId);
+            getModulePlayerList(remainingListName).remove(playerId);
+            getModulePlayerList(eliminatedListName).add(playerId);
             onEliminate(playerId);
         }
     }
@@ -123,8 +150,8 @@ public interface EliminationModule extends WinnableModule {
     {
         for (UUID playerId : playerIds)
         {
-            getPlayerList(remainingListName).add(playerId);
-            getPlayerList(eliminatedListName).remove(playerId);
+            getModulePlayerList(remainingListName).add(playerId);
+            getModulePlayerList(eliminatedListName).remove(playerId);
             onInstate(playerId);
         }
     }

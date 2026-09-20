@@ -14,7 +14,7 @@ public enum PlayerEventStatus {
     /**
      * Not registered for the event
      */
-    OMITTED
+    OMITTED;
 
     public PlayerEventStatus disconnected()
     {
