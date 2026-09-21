@@ -12,6 +12,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
+import io.papermc.paper.math.BlockPosition;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
@@ -23,6 +24,7 @@ public class CreateBoxDestinationCommand extends Cattamand {
 
         NamespacedKey eventId = context.getArgument("event", NamespacedKey.class);
         String tag = context.getArgument("tag", String.class);
+        BlockPosition position = context.getArgument("position", BlockPosition.class);
         double xSize = context.getArgument("xSize", double.class);
         double ySize = context.getArgument("ySize", double.class);
         double zSize = context.getArgument("zSize", double.class);
@@ -32,8 +34,7 @@ public class CreateBoxDestinationCommand extends Cattamand {
         TeleportationManager.addDestination(
                 new BoxDestination().initialize(
                         eventId, tag,
-                        sender.getWorld(),
-                        sender.getX(), sender.getY(), sender.getZ(),
+                        position.toCenter().toLocation(sender.getWorld()),
                         xSize, ySize, zSize
                 )
         );
@@ -53,6 +54,10 @@ public class CreateBoxDestinationCommand extends Cattamand {
                         "tag",
                         StringArgumentType.string(),
                         List.of("SPAWN", "POSTEVENT")
+                ),
+                new Cattarameter(
+                        "position",
+                        ArgumentTypes.blockPosition()
                 ),
                 new Cattarameter(
                         "xSize",

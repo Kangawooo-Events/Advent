@@ -12,6 +12,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
+import io.papermc.paper.math.BlockPosition;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
@@ -25,14 +26,14 @@ public class CreateCircleDestinationCommand extends Cattamand {
         NamespacedKey eventId = context.getArgument("event", NamespacedKey.class);
         String tag = context.getArgument("tag", String.class);
         double radius = context.getArgument("radius", double.class);
+        BlockPosition position = context.getArgument("position", BlockPosition.class);
 
         Player sender = ArgumentHelper.getPlayerSender(context);
 
         TeleportationManager.addDestination(
                 new CircleDestination().initialize(
                         eventId, tag,
-                        sender.getWorld(),
-                        sender.getX(), sender.getY(), sender.getZ(),
+                        position.toCenter().toLocation(sender.getWorld()),
                         radius, true
                 )
         );
@@ -46,14 +47,14 @@ public class CreateCircleDestinationCommand extends Cattamand {
         String tag = context.getArgument("tag", String.class);
         double radius = context.getArgument("radius", double.class);
         boolean fill = context.getArgument("fill", String.class).equals("full");
+        BlockPosition position = context.getArgument("position", BlockPosition.class);
 
         Player sender = ArgumentHelper.getPlayerSender(context);
 
         TeleportationManager.addDestination(
                 new CircleDestination().initialize(
                         eventId, tag,
-                        sender.getWorld(),
-                        sender.getX(), sender.getY(), sender.getZ(),
+                        position.toCenter().toLocation(sender.getWorld()),
                         radius, fill
                 )
         );
@@ -73,6 +74,10 @@ public class CreateCircleDestinationCommand extends Cattamand {
                         "tag",
                         StringArgumentType.string(),
                         List.of("SPAWN", "POSTEVENT")
+                ),
+                new Cattarameter(
+                        "position",
+                        ArgumentTypes.blockPosition()
                 ),
                 new Cattarameter(
                         "radius",

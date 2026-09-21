@@ -12,14 +12,14 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
 
 /**
- * Extension of Cattamand which provides helpful method(s) for making event control commands
+ * Extension of Cattamand which provides helpful method(s) for making event module control commands
  */
 public abstract class EventTypeCattamand<T extends EventType> extends Cattamand {
 
-     public EventBase getEvent(CommandContext<CommandSourceStack> context)
-     {
-         return EventManager.getEvent(context.getArgument("event", NamespacedKey.class));
-     }
+    public EventBase getEvent(CommandContext<CommandSourceStack> context)
+    {
+        return EventManager.getEvent(context.getArgument("event", NamespacedKey.class));
+    }
 
     public T getEventModule(CommandContext<CommandSourceStack> context)
     {

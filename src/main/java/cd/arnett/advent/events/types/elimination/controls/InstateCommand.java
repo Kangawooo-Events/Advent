@@ -6,6 +6,7 @@ import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.types.elimination.EliminationModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
+import com.destroystokyo.paper.profile.PlayerProfile;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -17,6 +18,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
+import java.util.Collection;
 import java.util.List;
 
 public class InstateCommand extends EventTypeCattamand<EliminationModule> {
@@ -24,13 +26,12 @@ public class InstateCommand extends EventTypeCattamand<EliminationModule> {
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context, EliminationModule eventModule) throws CommandSyntaxException {
-        String targetName = context.getArgument("player", String.class);
-        OfflinePlayer player = Bukkit.getOfflinePlayer(targetName);
+        Collection<PlayerProfile> targets = ArgumentHelper.getPlayerProfilesFromArgs("players", context);
 
-        eventModule.instate(player.getUniqueId());
+        targets.forEach(playerProfile -> eventModule.instate(playerProfile.getId()));
 
         ArgumentHelper.getPlayerSender(context).sendMessage(
-                MiniMessage.miniMessage().deserialize("<green> " + targetName +" Instated")
+                MiniMessage.miniMessage().deserialize("<green> Player(s) Instated")
         );
 
         return 0;
@@ -40,9 +41,8 @@ public class InstateCommand extends EventTypeCattamand<EliminationModule> {
     public List<? extends Cattarameter> getArguments() {
         return List.of(
                 new Cattarameter(
-                        "player",
-
-                        StringArgumentType.string(),
+                        "players",
+                        ArgumentTypes.playerProfiles(),
                         (ctx) -> getEventModule(ctx)
                                 .getPlayersEliminated().stream().map(
                                         id -> Bukkit.getOfflinePlayer(id).getName()

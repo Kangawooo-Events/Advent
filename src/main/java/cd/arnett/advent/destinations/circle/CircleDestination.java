@@ -22,15 +22,15 @@ public class CircleDestination extends TeleportDestination {
     =================================================================================================*/
 
 
-    public TeleportDestination initialize(NamespacedKey eventId, String tag, World residingWorld, double x, double y, double z, double radius, boolean fill) {
+    public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot, double radius, boolean fill) {
         this.fill = fill;
         this.radius = radius;
-        return super.initialize(eventId, tag, residingWorld, x, y, z);
+        return super.initialize(eventId, tag, spot);
     }
 
     @Override
-    public TeleportDestination initialize(NamespacedKey eventId, String tag, World residingWorld, double x, double y, double z) {
-        return new SpotDestination().initialize(eventId, tag, residingWorld, x, y, z);
+    public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot) {
+        return new SpotDestination().initialize(eventId, tag, spot);
     }
 
 
@@ -63,7 +63,7 @@ public class CircleDestination extends TeleportDestination {
         double randX = r * Math.cos(a) + radius;
         double randZ = r * Math.sin(a) + radius;
 
-        return new Location(residingWorld, randX, y, randZ);
+        return new Location(location.getWorld(), randX, location.y(), randZ);
     }
 
     @Override
@@ -73,7 +73,8 @@ public class CircleDestination extends TeleportDestination {
 
     @Override
     public String getDisplayInfo() {
-        return String.format("Circle - X %.2f, Y %.2f, Z %.2f, V %.2f", x, y, z, getVolume());
+        return String.format("Circle - X %.2f, Y %.2f, Z %.2f, V %.2f",
+                location.getX(), location.getY(), location.getZ());
     }
 
     @Override
@@ -139,12 +140,12 @@ public class CircleDestination extends TeleportDestination {
     @Override
     public boolean isWithinBounds(Location spot) {
 
-        if(spot.getWorld() != residingWorld)
+        if(spot.getWorld() != location.getWorld())
             return false;
 
-        double diffX = Math.abs(x - spot.getX());
-        double diffY = Math.abs(y - spot.getY());
-        double diffZ = Math.abs(z - spot.getZ());
+        double diffX = Math.abs(location.getX() - spot.getX());
+        double diffY = Math.abs(location.getY() - spot.getY());
+        double diffZ = Math.abs(location.getZ() - spot.getZ());
 
         if(diffY > 1)
             return false;

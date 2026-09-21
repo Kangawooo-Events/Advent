@@ -254,12 +254,21 @@ public class EventManager {
                         -  Controlling Events  -
     =================================================================================================*/
 
-
-    public static void startEvent()
+    /**
+     * Calls Start Event for the given event key
+     */
+    public static void startEvent(NamespacedKey eventKey)
     {
-
+        getEvent(eventKey).startEvent();
     }
 
+    /**
+     * Calls Stop Event for the given event key
+     */
+    public static void stopEvent(NamespacedKey eventKey)
+    {
+        getEvent(eventKey).stopEvent();
+    }
 
     //endregion
 

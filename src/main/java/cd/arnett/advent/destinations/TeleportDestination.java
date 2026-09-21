@@ -11,13 +11,9 @@ import java.util.ArrayList;
 
 public abstract class TeleportDestination {
 
-    protected World residingWorld;
+    protected Location location;
     protected NamespacedKey eventId;
     protected String tag;
-
-    protected double x;
-    protected double y;
-    protected double z;
 
 
     //region Initialization
@@ -27,13 +23,10 @@ public abstract class TeleportDestination {
     =================================================================================================*/
 
 
-    public TeleportDestination initialize(NamespacedKey eventId, String tag, World residingWorld, double x, double y, double z) {
+    public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot) {
         this.eventId = eventId;
         this.tag = tag;
-        this.residingWorld = residingWorld;
-        this.x = x;
-        this.y = y;
-        this.z = z;
+        this.location = spot;
         return this;
     }
 
@@ -53,8 +46,8 @@ public abstract class TeleportDestination {
     =================================================================================================*/
 
 
-    public World getResidingWorld() {
-        return residingWorld;
+    public Location getLocation() {
+        return location;
     }
 
     public NamespacedKey getEventId() {
@@ -64,18 +57,6 @@ public abstract class TeleportDestination {
     public String getTag() {
         return tag;
     }
-    public double getX() {
-        return x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
-    public double getZ() {
-        return z;
-    }
-
 
     /**
      * @return A location in this object's bounds which is safe to teleport a survival player to. Will check 20 random
@@ -210,12 +191,9 @@ public abstract class TeleportDestination {
         var yaml = new YamlConfiguration();
 
         yaml.set("type", getTypeId().toString());
-        yaml.set("x", x);
-        yaml.set("y", y);
-        yaml.set("z", z);
+        yaml.set("location", location);
         yaml.set("eventid", eventId.toString());
         yaml.set("tag", tag);
-        yaml.set("world", residingWorld.toString());
 
         return yaml;
     }
@@ -227,12 +205,9 @@ public abstract class TeleportDestination {
     public void readFromYaml(YamlConfiguration yaml)
     {
         try {
-            x = yaml.getDouble("x");
-            y = yaml.getDouble("y");
-            z = yaml.getDouble("z");
             eventId = NamespacedKey.fromString(yaml.getString("eventid"));
             tag = yaml.getString("tag");
-            residingWorld = Bukkit.getWorld(yaml.getString("world"));
+            location = yaml.getLocation("location");
         }
         catch (Exception e)
         {

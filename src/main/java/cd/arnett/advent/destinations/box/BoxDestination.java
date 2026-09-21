@@ -24,16 +24,16 @@ public class BoxDestination extends TeleportDestination {
                         -  Initialization  -
     =================================================================================================*/
 
-    public TeleportDestination initialize(NamespacedKey eventId, String tag, World residingWorld, double x, double y, double z, double zScale, double yScale, double xScale) {
+    public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot, double zScale, double yScale, double xScale) {
         this.zScale = zScale;
         this.yScale = yScale;
         this.xScale = xScale;
-        return super.initialize(eventId, tag, residingWorld, x, y, z);
+        return super.initialize(eventId, tag, spot);
     }
 
     @Override
-    public TeleportDestination initialize(NamespacedKey eventId, String tag, World residingWorld, double x, double y, double z) {
-        return new SpotDestination().initialize(eventId, tag, residingWorld, x, y, z);
+    public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot) {
+        return new SpotDestination().initialize(eventId, tag, spot);
     }
 
 
@@ -51,11 +51,11 @@ public class BoxDestination extends TeleportDestination {
 
         Random rand = new Random();
 
-        double randX = x + rand.nextDouble(-.5d, .5d) * xScale;
-        double randY = y + rand.nextDouble(-.5d, .5d) * yScale;
-        double randZ = z + rand.nextDouble(-.5d, .5d) * zScale;
+        double randX = location.getX() + rand.nextDouble(-.5d, .5d) * xScale;
+        double randY = location.getY() + rand.nextDouble(-.5d, .5d) * yScale;
+        double randZ = location.getZ() + rand.nextDouble(-.5d, .5d) * zScale;
 
-        return new Location(residingWorld, randX, randY, randZ);
+        return new Location(location.getWorld(), randX, randY, randZ);
     }
 
     @Override
@@ -66,7 +66,8 @@ public class BoxDestination extends TeleportDestination {
 
     @Override
     public String getDisplayInfo() {
-        return String.format("Box - X %.2f, Y %.2f, Z %.2f, V %.2f", x, y, z, getVolume());
+        return String.format("Box - X %.2f, Y %.2f, Z %.2f, V %.2f",
+                location.getX(), location.getY(), location.getZ());
     }
 
     @Override
@@ -120,7 +121,7 @@ public class BoxDestination extends TeleportDestination {
     @Override
     public void sendDisplayParticles(Player... players) {
         new ParticleBuilder(Particle.DUST)
-                .location(new Location(residingWorld, x, y, z))
+                .location(location)
                 .count((int)getVolume() * 2)
                 .offset(xScale/2, yScale/2, zScale/2)
                 .color(Color.RED)
@@ -135,9 +136,9 @@ public class BoxDestination extends TeleportDestination {
      */
     @Override
     public boolean isWithinBounds(Location spot) {
-        return  spot.getX() > x - xScale/2 && spot.getX() < x + xScale/2 &&
-                spot.getY() > y - yScale/2 && spot.getY() < y + yScale/2 &&
-                spot.getZ() > z - zScale/2 && spot.getZ() < z + zScale/2;
+        return  spot.getX() > location.getX() - xScale/2 && spot.getX() < location.getX() + xScale/2 &&
+                spot.getY() > location.getY() - yScale/2 && spot.getY() < location.getY() + yScale/2 &&
+                spot.getZ() > location.getZ() - zScale/2 && spot.getZ() < location.getZ() + zScale/2;
     }
 
 

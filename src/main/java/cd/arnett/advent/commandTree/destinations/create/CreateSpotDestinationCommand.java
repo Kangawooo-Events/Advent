@@ -11,6 +11,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
+import io.papermc.paper.math.BlockPosition;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
@@ -22,14 +23,13 @@ public class CreateSpotDestinationCommand extends Cattamand {
 
         NamespacedKey eventId = context.getArgument("event", NamespacedKey.class);
         String tag = context.getArgument("tag", String.class);
+        BlockPosition position = context.getArgument("position", BlockPosition.class);
 
         Player sender = ArgumentHelper.getPlayerSender(context);
 
         TeleportationManager.addDestination(
                 new SpotDestination().initialize(
-                        eventId, tag,
-                        sender.getWorld(),
-                        sender.getX(), sender.getY(), sender.getZ()
+                        eventId, tag, position.toCenter().toLocation(sender.getWorld())
                 )
         );
 
@@ -48,6 +48,10 @@ public class CreateSpotDestinationCommand extends Cattamand {
                         "tag",
                         StringArgumentType.string(),
                         List.of("SPAWN", "POSTEVENT")
+                ),
+                new Cattarameter(
+                        "position",
+                        ArgumentTypes.blockPosition()
                 )
         );
     }

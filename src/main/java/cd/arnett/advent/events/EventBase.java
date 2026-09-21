@@ -209,10 +209,10 @@ public abstract class EventBase {
     }
 
     /**
-     * removes a player from this event
+     * forces a player to leave the event (if you want to revoke registration this is different)
      * @param id ID of player to remove
      */
-    public void removeFromEvent(UUID id)
+    public void leaveEvent(UUID id)
     {
         registeredPlayers.remove(id);
     }
@@ -472,7 +472,7 @@ public abstract class EventBase {
     public void revokeRegistration(UUID id)
     {
         if(registeredPlayers.get(id) == PlayerEventStatus.PLAYING)
-            removeFromEvent(id);
+            leaveEvent(id);
 
         registeredPlayers.remove(id);
     }

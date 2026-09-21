@@ -17,7 +17,7 @@ public class SpotDestination extends TeleportDestination {
 
     @Override
     public Location getDestination() {
-        return new Location(residingWorld, x, y, z);
+        return location;
     }
 
     @Override
@@ -28,7 +28,8 @@ public class SpotDestination extends TeleportDestination {
 
     @Override
     public String getDisplayInfo() {
-        return String.format("Spot - X %.2f, Y %.2f, Z %.2f", x, y, z);
+        return String.format("Spot - X %.2f, Y %.2f, Z %.2f",
+                location.getX(), location.getY(), location.getZ());
     }
 
     @Override
@@ -49,7 +50,7 @@ public class SpotDestination extends TeleportDestination {
     @Override
     public void sendDisplayParticles(Player... players) {
         new ParticleBuilder(Particle.DUST)
-                .location(new Location(residingWorld, x, y, z))
+                .location(location)
                 .count(5)
                 .color(Color.RED)
                 .receivers(players)
@@ -58,7 +59,7 @@ public class SpotDestination extends TeleportDestination {
 
     @Override
     public boolean isWithinBounds(Location spot) {
-        return spot.distance(new Location(residingWorld, x, y, z)) < 1;
+        return spot.distance(location) < 1;
     }
 
 

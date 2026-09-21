@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.+")
-    compileOnly("com.github.Kangawooo-Events:Caddamands:v3.A.8")
+    compileOnly("com.github.Kangawooo-Events:Caddamands:v3.A.9")
     implementation("org.springframework:spring-jcl:6.1.5")
     implementation("org.springframework:spring-core:6.1.5")
 }
