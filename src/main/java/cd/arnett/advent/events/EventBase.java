@@ -5,11 +5,12 @@ import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.ReadYaml;
 import cd.arnett.advent.events.annotations.WriteYaml;
-import cd.arnett.advent.events.annotations.data.PlayerIdArrayList;
-import cd.arnett.advent.events.annotations.data.PlayerIntegerHashMap;
+import cd.arnett.advent.events.annotations.data.*;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
+import org.apache.commons.lang3.function.TriFunction;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -36,13 +37,6 @@ public abstract class EventBase {
      */
     HashMap<String, Object> moduleData = new HashMap<>();
 
-    /**
-     * tracks keys to data which are of a special type which get automatic yaml reading and writing
-     */
-    HashMap<Class<? extends Annotation>, ArrayList<String>> automaticDataKeys = new HashMap<>();
-
-
-
     boolean isActive = false;
 
     public EventBase() {
@@ -50,34 +44,6 @@ public abstract class EventBase {
         loadCallbacks();
         invokeCallbacks(OnInitialize.class, null);
     }
-
-
-    //region Automated Data
-
-    //----------= Automated Data =-----------------------------------------------------------------------------
-
-
-    /**
-     * Set of all annotations to track
-     */
-    static Set<Class<? extends Annotation>> automatedAnnotationTypes = Set.of(
-            PlayerIdArrayList.class,
-            PlayerIntegerHashMap.class
-    );
-
-    /**
-     * A dynamic way to add automated data to the module data, Call BEFORE reading in YAML (OnInitalize)
-     * @param annotation Type of data to add
-     * @param name Name to put the data under
-     * @param data Data to save
-     */
-    public void registerAutomatedData(Class<? extends Annotation> annotation, String name, Object data)
-    {
-        moduleData.put(name, data);
-        automaticDataKeys.computeIfAbsent(annotation, (list) -> new ArrayList<>()).add(name);
-    }
-
-    //endregion
 
 
     //region Callbacks
@@ -211,6 +177,11 @@ public abstract class EventBase {
     =================================================================================================*/
 
     /**
+     * Tracks what command controls this event has
+     */
+    ArrayList<Cattamand> commandControls = new ArrayList<>();
+
+    /**
      * Call to start event
      */
     public void startEvent()
@@ -246,26 +217,37 @@ public abstract class EventBase {
         registeredPlayers.remove(id);
     }
 
+    /**
+     * Registers a cattamand as a control for this event,
+     * must be called BEFORE this event is registered with the event manager
+     * @param control Cattamand to add
+     */
+    public void registerCommandControl(Cattamand control)
+    {
+        commandControls.add(control);
+    }
+
     /**\
      * @return all Cattamand controls provided by the interfaces
      */
     public List<Cattamand> getCommandControls() {
 
-        return callbacks.get(EventControl.class).stream().map(method -> {
+        commandControls.addAll(callbacks.get(EventControl.class).stream().map(method -> {
             try {
                 return (Cattamand) method.invoke(this);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
-        }).toList();
+        }).toList());
+        return commandControls;
 
     }
-
-    //region Overloads
 
 
 
     //endregion
+
+
 
     //region Events
 
@@ -524,12 +506,29 @@ public abstract class EventBase {
     //endregion
 
 
+
     //region Automatic Module Data
 
     /*=================================================================================================
                         -  Automatic Module Data  -
     =================================================================================================*/
 
+    /**
+     * tracks keys to data which are of a special type which get automatic yaml reading and writing
+     */
+    HashMap<Annotation, ArrayList<String>> automaticDataKeys = new HashMap<>();
+
+    /**
+     * A dynamic way to add automated data to the module data, Call BEFORE reading in YAML (OnInitalize)
+     * @param annotation Type of data to add
+     * @param name Name to put the data under
+     * @param data Data to save
+     */
+    public void registerAutomatedData(Annotation annotation, String name, Object data)
+    {
+        moduleData.put(name, data);
+        automaticDataKeys.computeIfAbsent(annotation, (ann) -> new ArrayList<>()).add(name);
+    }
 
     /**
      * Checks for Module data type annotations which we have yaml read and write definitions for already
@@ -539,11 +538,10 @@ public abstract class EventBase {
     {
         for(Annotation ann : method.getAnnotations())
         {
-            var annotationClass = ann.getClass();
-            if(automaticDataKeys.containsKey(annotationClass))
+            if(automatedAnnotationTypes.contains(ann.getClass()))
             {
                 automaticDataKeys.computeIfAbsent(
-                        annotationClass,
+                        ann,
                         _ -> new ArrayList<>()
                 ).add(key);
             }
@@ -558,15 +556,10 @@ public abstract class EventBase {
     {
         YamlConfiguration yaml = new YamlConfiguration();
 
-        automaticDataKeys.get(PlayerIdArrayList.class).forEach(key -> {
-            yaml.set(key, ((ArrayList<UUID>) moduleData.get(key)).stream().map(UUID::toString));
-        });
-
-        automaticDataKeys.get(PlayerIntegerHashMap.class).forEach(key -> {
-            yaml.set(key, ((HashMap<UUID, Integer>) moduleData.get(key)).entrySet().stream().collect(Collectors.toMap(
-                    (entry) -> entry.getKey().toString(),
-                    Map.Entry::getValue)
-            ));
+        automaticDataKeys.forEach((annotation, keys) -> {
+            keys.forEach(key -> {
+                writingMethods.get(annotation.getClass()).accept(annotation, yaml, key, moduleData.get(key));
+            });
         });
 
         return yaml;
@@ -578,22 +571,195 @@ public abstract class EventBase {
     @ReadYaml
     void readAutomaticData(YamlConfiguration yaml)
     {
-        //for each data entry of this type
-        automaticDataKeys.get(PlayerIdArrayList.class).forEach(key -> {
-            ArrayList<UUID> list = (ArrayList<UUID>)moduleData.get(key);
-            list.addAll(yaml.getStringList(key).stream().map(UUID::fromString).toList());
+        automaticDataKeys.forEach((annotation, keys) -> {
+            keys.forEach(key -> {
+                moduleData.put(key, readingMethods.get(annotation).apply(annotation, yaml, key));
+            });
         });
 
-        automaticDataKeys.get(PlayerIntegerHashMap.class).forEach(key -> {
+        //for each data entry of this type
+        automaticDataKeys.get(HashSetModuleData.class).forEach(key -> {
+        });
+
+        automaticDataKeys.get(UUIDHashMapModuleData.class).forEach(key -> {
             HashMap<UUID, Integer> map = (HashMap<UUID, Integer>)moduleData.get(key);
             yaml.getConfigurationSection(key).getValues(false).forEach((id, value) -> {
                 map.put(UUID.fromString(id), (Integer) value);
             });
 
         });
-
     }
 
+    /**
+     * Set of all annotations to track
+     */
+    static Set<Class<? extends Annotation>> automatedAnnotationTypes = Set.of(
+            IntegerModuleData.class,
+            StringModuleData.class,
+            HashSetModuleData.class,
+            UUIDHashMapModuleData.class
+    );
+
+
+    @FunctionalInterface
+    interface QuadConsumer<A, B, C, D> {
+        void accept(A a, B b, C c, D d);
+    }
+
+    /**
+     * Map of writing functions for each tracked annotation type
+     */
+    static HashMap<Class<? extends Annotation>, QuadConsumer<Annotation, ConfigurationSection, String, Object>> writingMethods = new HashMap<>();
+
+    /**
+     * Map of reading functions for each tracked annotation type
+     */
+    static HashMap<Class<? extends Annotation>, TriFunction<Annotation, ConfigurationSection, String, ?>> readingMethods = new HashMap<>();
+
+    static
+    {
+        //reading
+        readingMethods.put(
+                IntegerModuleData.class, (_, yaml, key)
+                        -> yaml.getInt(key)
+        );
+        readingMethods.put(
+                BooleanModuleData.class, (_, yaml, key)
+                        -> yaml.getBoolean(key)
+        );
+        readingMethods.put(
+                FloatModuleData.class, (_, yaml, key)
+                        -> (float)yaml.getDouble(key)
+        );
+        readingMethods.put(
+                DoubleModuleData.class, (_, yaml, key)
+                        -> yaml.getDouble(key)
+        );
+        readingMethods.put(
+                StringModuleData.class, (_, yaml, key)
+                        -> yaml.getString(key)
+        );
+
+        //writing
+        writingMethods.put(
+                IntegerModuleData.class, (_, yaml, key, value)
+                        -> yaml.set(key, value)
+        );
+        writingMethods.put(
+                BooleanModuleData.class, (_, yaml, key, value)
+                        -> yaml.set(key, value)
+        );
+        writingMethods.put(
+                FloatModuleData.class, (_, yaml, key, value)
+                        -> yaml.set(key, value)
+        );
+        writingMethods.put(
+                DoubleModuleData.class, (_, yaml, key, value)
+                        -> yaml.set(key, value)
+        );
+        writingMethods.put(
+                StringModuleData.class, (_, yaml, key, value)
+                        -> yaml.set(key, value)
+        );
+
+
+
+        //region HashSet
+
+        //----------= HashSet =-----------------------------------------------------------------------------
+
+
+        readingMethods.put(
+                HashSetModuleData.class, (_, yaml, key)
+                        -> {
+                    List<?> list = yaml.getList(key);
+                    if(list != null)
+                        return new HashSet<>(list);
+                    return new HashSet<>();
+                }
+        );
+
+        writingMethods.put(
+                HashSetModuleData.class, (ann, yaml, key, value)
+                        -> yaml.set(key, new ArrayList<>((HashSet<?>)value))
+        );
+
+
+        //endregion
+
+
+        //region UUID HashMap
+
+        //----------= UUID HashMap =-----------------------------------------------------------------------------
+
+
+        readingMethods.put(
+                UUIDHashMapModuleData.class, (ann, yaml, key)
+                        -> {
+                    HashMap<UUID, Object> map = new HashMap<>();
+                    ConfigurationSection section = yaml.getConfigurationSection(key);
+                    section.getValues(false).forEach((id, value) -> {
+                        map.put(
+                                UUID.fromString(id),
+                                readingMethods.get(
+                                        ((UUIDHashMapModuleData)ann).value()
+                                ).apply(null, section, id)
+                        );
+                    });
+                    return map;
+                }
+        );
+
+        writingMethods.put(
+                UUIDHashMapModuleData.class, (ann, yaml, key, value)
+                        -> {
+                    ConfigurationSection mapSection = yaml.createSection(key);
+                    ((HashMap<UUID, Object>) value).forEach((id, obj) -> {
+                        writingMethods.get(((UUIDHashMapModuleData)ann).value()).accept(null, mapSection, id.toString(), obj);
+                    });
+                }
+        );
+
+
+        //endregion
+
+
+        //region String HashMap
+
+        //----------= String HashMap =-----------------------------------------------------------------------------
+
+
+        readingMethods.put(
+                StringHashMapModuleData.class, (ann, yaml, key)
+                        -> {
+                    HashMap<String, Object> map = new HashMap<>();
+                    ConfigurationSection section = yaml.getConfigurationSection(key);
+                    section.getValues(false).forEach((id, value) -> {
+                        map.put(
+                                id,
+                                readingMethods.get(
+                                        ((UUIDHashMapModuleData)ann).value()
+                                ).apply(null, section, id)
+                        );
+                    });
+                    return map;
+                }
+        );
+
+
+        writingMethods.put(
+                StringHashMapModuleData.class, (ann, yaml, key, value)
+                        -> {
+                    ConfigurationSection mapSection = yaml.createSection(key);
+                    ((HashMap<String, Object>) value).forEach((id, obj) -> {
+                        writingMethods.get(((StringHashMapModuleData)ann).value()).accept(null, mapSection, id, obj);
+                    });
+                }
+        );
+
+
+        //endregion
+    }
 
     //endregion
 

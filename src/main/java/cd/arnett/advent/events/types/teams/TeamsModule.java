@@ -1,9 +1,11 @@
 package cd.arnett.advent.events.types.teams;
 
 import cd.arnett.advent.events.annotations.OnInitialize;
-import cd.arnett.advent.events.annotations.data.PlayerIdArrayList;
+import cd.arnett.advent.events.annotations.data.HashSetModuleData;
+import cd.arnett.advent.events.annotations.data.UUIDModuleData;
 import cd.arnett.advent.events.types.EventType;
 
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +27,18 @@ public interface TeamsModule extends EventType {
 
         teams.forEach(team -> {
             getEvent().registerAutomatedData(
-                    PlayerIdArrayList.class,
+                    new HashSetModuleData()
+                    {
+                        @Override
+                        public Class<? extends Annotation> annotationType() {
+                            return HashSetModuleData.class;
+                        }
+
+                        @Override
+                        public Class<? extends Annotation> value() {
+                            return UUIDModuleData.class;
+                        }
+                    },
                     team.name() + "TeamPlayers",
                     new ArrayList<UUID>()
             );

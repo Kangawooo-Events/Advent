@@ -2,7 +2,8 @@ package cd.arnett.advent.events.types.elimination;
 
 import cd.arnett.advent.events.annotations.EventControl;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
-import cd.arnett.advent.events.annotations.data.PlayerIdArrayList;
+import cd.arnett.advent.events.annotations.data.HashSetModuleData;
+import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
 import cd.arnett.advent.events.types.elimination.controls.EliminateCommand;
 import cd.arnett.advent.events.types.elimination.controls.InstateCommand;
 import cd.arnett.advent.events.types.winnable.WinnableModule;
@@ -27,20 +28,20 @@ public interface EliminationModule extends WinnableModule {
      * Provides a list of Remaining players to moduleData
      */
     @ModuleDataProvider(remainingListName)
-    @PlayerIdArrayList()
-    default ArrayList<UUID> remainingPlayers()
+    @HashSetModuleData(UUIDHashMapModuleData.class)
+    default HashSet<UUID> remainingPlayers()
     {
-        return new ArrayList<>();
+        return new HashSet<>();
     }
 
     /**
      * Provides a list of Eliminated players to moduleData
      */
     @ModuleDataProvider(eliminatedListName)
-    @PlayerIdArrayList()
-    default ArrayList<UUID> eliminatedPlayers()
+    @HashSetModuleData(UUIDHashMapModuleData.class)
+    default HashSet<UUID> eliminatedPlayers()
     {
-        return new ArrayList<>();
+        return new HashSet<>();
     }
 
 

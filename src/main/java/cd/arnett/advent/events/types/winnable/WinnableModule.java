@@ -2,7 +2,8 @@ package cd.arnett.advent.events.types.winnable;
 
 import cd.arnett.advent.events.annotations.EventControl;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
-import cd.arnett.advent.events.annotations.data.PlayerIdArrayList;
+import cd.arnett.advent.events.annotations.data.HashSetModuleData;
+import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
 import cd.arnett.advent.events.types.EventType;
 import cd.arnett.advent.events.types.winnable.controls.GrantWinCommand;
 import cd.arnett.advent.events.types.winnable.controls.RevokeWinCommand;
@@ -10,10 +11,7 @@ import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public interface WinnableModule extends EventType {
 
@@ -31,10 +29,10 @@ public interface WinnableModule extends EventType {
      * Provides a list of Remaining players to moduleData
      */
     @ModuleDataProvider(winnersListName)
-    @PlayerIdArrayList()
-    default ArrayList<UUID> remainingPlayers()
+    @HashSetModuleData(UUIDHashMapModuleData.class)
+    default HashSet<UUID> winningPlayers()
     {
-        return new ArrayList<>();
+        return new HashSet<>();
     }
 
 

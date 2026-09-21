@@ -1,11 +1,10 @@
 package cd.arnett.advent.events.types.lives;
 
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
-import cd.arnett.advent.events.annotations.data.PlayerIdArrayList;
-import cd.arnett.advent.events.annotations.data.PlayerIntegerHashMap;
+import cd.arnett.advent.events.annotations.data.IntegerModuleData;
+import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
 import cd.arnett.advent.events.types.elimination.EliminationModule;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -24,7 +23,7 @@ public interface LivesModule extends EliminationModule {
      * Provides a list of Remaining players to moduleData
      */
     @ModuleDataProvider(livesMapName)
-    @PlayerIntegerHashMap()
+    @UUIDHashMapModuleData(IntegerModuleData.class)
     default HashMap<UUID, Integer> playerLives()
     {
         return new HashMap<>();
