@@ -904,7 +904,7 @@ public abstract class EventBase {
 
 
     /**
-     * @return Provides information section on what players are actively playing in the event
+     * @return Provides information on the state of the event
      */
     @EventInfoProvider(name = "Basic", separate = false)
     public Map<String, Object> basicInfo()

@@ -2,6 +2,7 @@ package cd.arnett.advent.events.types.elimination;
 
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.events.annotations.EventControl;
+import cd.arnett.advent.events.annotations.EventInfoProvider;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.OnRegistrationAdd;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
@@ -13,9 +14,12 @@ import cd.arnett.advent.events.types.winnable.WinnableModule;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import com.destroystokyo.paper.profile.PlayerProfile;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public interface EliminationModule extends WinnableModule {
 
@@ -259,6 +263,83 @@ public interface EliminationModule extends WinnableModule {
                         new InstateCommand()
                 )
         );
+    }
+
+
+    //endregion
+
+
+    //region Info
+
+    /*=================================================================================================
+                        -  Info  -
+    =================================================================================================*/
+
+
+
+    /**
+     * @return Provides information on the winner module
+     */
+    @EventInfoProvider(name = "EliminationModule", separate = false)
+    default Map<String, Object> eliminationsModuleInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+
+        int remainingCount = getPlayersRemaining().size();
+        int eliminatedCount = getPlayersEliminated().size();
+
+        sectionMap.put("Remaining Count", remainingCount);
+        sectionMap.put("Eliminated Count", eliminatedCount);
+
+        return sectionMap;
+    }
+
+    /**
+     * @return Provides information section on what players have won
+     */
+    @EventInfoProvider(name = "Eliminated", separate = true)
+    default Map<String, Object> eliminatedInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+        StringBuilder output = new StringBuilder();
+        var players = getPlayersEliminated();
+
+        AtomicInteger counter = new AtomicInteger(0);
+        players.stream().map(Bukkit::getOfflinePlayer).map(OfflinePlayer::getName).forEach(name -> {
+            boolean even = counter.getAndIncrement() % 2 == 0;
+
+            output.append(even ? "<color:#c4c4c4>" : "</color:#c4c4c4>").append(name).append(' ');
+
+        });
+
+        sectionMap.put("Count", players.size());
+        sectionMap.put("Players", output.toString());
+
+        return sectionMap;
+    }
+
+    /**
+     * @return Provides information section on what players have won
+     */
+    @EventInfoProvider(name = "Remaining", separate = true)
+    default Map<String, Object> remainingInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+        StringBuilder output = new StringBuilder();
+        var players = getPlayersRemaining();
+
+        AtomicInteger counter = new AtomicInteger(0);
+        players.stream().map(Bukkit::getOfflinePlayer).map(OfflinePlayer::getName).forEach(name -> {
+            boolean even = counter.getAndIncrement() % 2 == 0;
+
+            output.append(even ? "<color:#c4c4c4>" : "</color:#c4c4c4>").append(name).append(' ');
+
+        });
+
+        sectionMap.put("Count", players.size());
+        sectionMap.put("Players", output.toString());
+
+        return sectionMap;
     }
 
 

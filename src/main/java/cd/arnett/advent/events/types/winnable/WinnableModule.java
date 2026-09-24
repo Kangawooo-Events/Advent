@@ -2,6 +2,7 @@ package cd.arnett.advent.events.types.winnable;
 
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.events.annotations.EventControl;
+import cd.arnett.advent.events.annotations.EventInfoProvider;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
@@ -11,9 +12,12 @@ import cd.arnett.advent.events.types.winnable.controls.GrantWinCommand;
 import cd.arnett.advent.events.types.winnable.controls.RevokeWinCommand;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public interface WinnableModule extends EventType {
 
@@ -48,6 +52,7 @@ public interface WinnableModule extends EventType {
 
 
     //endregion
+
 
     //region Queries
 
@@ -219,4 +224,53 @@ public interface WinnableModule extends EventType {
 
     //endregion
 
+
+    //region Info
+
+    /*=================================================================================================
+                        -  Info  -
+    =================================================================================================*/
+
+
+    /**
+     * @return Provides information on the winner module
+     */
+    @EventInfoProvider(name = "WinnableModule", separate = false)
+    default Map<String, Object> winnableModuleInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+
+        int winnerCount = getPlayersWon().size();
+
+        sectionMap.put("Winner Count", winnerCount);
+
+        return sectionMap;
+    }
+
+    /**
+     * @return Provides information section on what players have won
+     */
+    @EventInfoProvider(name = "Winners", separate = true)
+    default Map<String, Object> winnersInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+        StringBuilder output = new StringBuilder();
+        var players = getPlayersWon();
+
+        AtomicInteger counter = new AtomicInteger(0);
+        players.stream().map(Bukkit::getOfflinePlayer).map(OfflinePlayer::getName).forEach(name -> {
+            boolean even = counter.getAndIncrement() % 2 == 0;
+
+            output.append(even ? "<color:#c4c4c4>" : "</color:#c4c4c4>").append(name).append(' ');
+
+        });
+
+        sectionMap.put("Count", players.size());
+        sectionMap.put("Players", output.toString());
+
+        return sectionMap;
+    }
+
+
+    //endregion
 }

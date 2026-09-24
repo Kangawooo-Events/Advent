@@ -4,21 +4,24 @@ import cd.arnett.advent.events.annotations.OnInitialize;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDModuleData;
 import cd.arnett.advent.events.types.EventType;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import org.bukkit.entity.Player;
 
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
 public interface TeamsModule extends EventType {
 
-    List<EventTeamDefinition> teamDefinitions();
+    String teamNameSuffix =  "-TeamPlayers";
 
-    //region Initialization
+
+
+    //region Module Data
 
     /*=================================================================================================
-                        -  Initialization  -
+                        -  Module Data  -
     =================================================================================================*/
 
     @OnInitialize
@@ -40,15 +43,111 @@ public interface TeamsModule extends EventType {
                             return UUIDModuleData.class;
                         }
                     },
-                    team.name() + "TeamPlayers",
+                    team.name() + teamNameSuffix,
                     new HashSet<UUID>()
             );
         });
 
     }
 
+    /**
+     * Returns the team list for the specified team name
+     */
+    default HashSet<UUID> getTeamPlayers(String teamName)
+    {
+        return getModuleData(teamName + teamNameSuffix);
+    }
+
 
     //endregion
 
 
+    //region Abstract Properties
+    
+    /*=================================================================================================
+                        -  Abstract Properties  -
+    =================================================================================================*/
+
+    /**
+     * @return List of teams
+     */
+    List<EventTeamDefinition> teamDefinitions();
+    
+    
+    //endregion
+    
+    
+    //region Queries
+    
+    /*=================================================================================================
+                        -  Queries  -
+    =================================================================================================*/
+
+    /**
+     * Checks whether a player is in a team
+     * @param teamName Team to check
+     * @param id Player ID to check
+     * @return Whether they are in that team
+     */
+    default boolean isInTeam(String teamName, UUID id)
+    {
+        return getTeamPlayers(teamName).contains(id);
+    }
+    
+    
+    //region Overloads
+    
+    //----------= Overloads =-----------------------------------------------------------------------------
+
+    /**
+     * Checks whether a player is in a team
+     * @param teamName Team to check
+     * @param profile Player profile to check
+     * @return Whether they are in that team
+     */
+    default boolean isInTeam(String teamName, PlayerProfile profile)
+    {
+        return isInTeam(teamName, profile.getId());
+    }
+    
+    /**
+     * Checks whether a player is in a team
+     * @param teamName Team to check
+     * @param player Player to check
+     * @return Whether they are in that team
+     */
+    default boolean isInTeam(String teamName, Player player)
+    {
+        return isInTeam(teamName, player.getPlayerProfile());
+    }
+
+    //endregion
+    
+    //endregion
+    
+    
+    //region Info
+    
+    /*=================================================================================================
+                        -  Info  -
+    =================================================================================================*/
+    
+    
+    
+    
+    
+    //endregion
+
+
+    //region Controls
+
+    /*=================================================================================================
+                        -  Controls  -
+    =================================================================================================*/
+
+
+
+
+
+    //endregion
 }
