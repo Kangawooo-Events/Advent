@@ -1,17 +1,19 @@
-package cd.arnett.advent.commandTree;
+package cd.arnett.advent.commands.commandTree.destinations;
 
 import cd.arnett.advent.EventManager;
+import cd.arnett.advent.TeleportationManager;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-public class EventCommand extends Cattamand {
+public class CreateDestinationCommand extends Cattamand {
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         return 0;
@@ -24,13 +26,25 @@ public class EventCommand extends Cattamand {
                         "event",
                         ArgumentTypes.namespacedKey(),
                         (ctx) -> EventManager.getEventNames()
+                ),
+                new Cattarameter(
+                        "tag",
+                        StringArgumentType.string(),
+                        Map.of(
+                                "SPAWN", "Tag for identification, can be any word",
+                                "POSTEVENT", "Tag for identification, can be any word"
+                        )
+                ),
+                new Cattarameter(
+                        "position",
+                        ArgumentTypes.blockPosition()
                 )
         );
     }
 
     @Override
     public String getName() {
-        return "event";
+        return "create";
     }
 
     @Override
@@ -40,22 +54,16 @@ public class EventCommand extends Cattamand {
 
     @Override
     public List<String> getAliases() {
-        return List.of("advent", "adv");
-    }
-
-    @Override
-    public List<? extends Cattamand> getChildren() {
-        ArrayList<Cattamand> subCommands = new ArrayList<>();
-
-        EventManager.getEvents().forEach(eventBase -> {
-            subCommands.addAll(eventBase.getCommandControls());
-        });
-
-        return subCommands;
+        return List.of();
     }
 
     @Override
     public boolean doExecute() {
         return false;
+    }
+
+    @Override
+    public List<? extends Cattamand> getChildren() {
+        return TeleportationManager.getDestinationCreationCommands();
     }
 }

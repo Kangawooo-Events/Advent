@@ -2,10 +2,13 @@ package cd.arnett.advent.destinations.box;
 
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.destinations.TeleportDestination;
+import cd.arnett.advent.destinations.box.command.CreateBoxDestinationCommand;
 import cd.arnett.advent.destinations.spot.SpotDestination;
+import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.destroystokyo.paper.ParticleBuilder;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 import org.bukkit.*;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
@@ -67,7 +70,12 @@ public class BoxDestination extends TeleportDestination {
     @Override
     public String getDisplayInfo() {
         return String.format("Box - X %.2f, Y %.2f, Z %.2f, V %.2f",
-                location.getX(), location.getY(), location.getZ());
+                location.getX(), location.getY(), location.getZ(), getVolume());
+    }
+
+    @Override
+    public Cattamand creationCommand() {
+        return new CreateBoxDestinationCommand();
     }
 
     @Override
@@ -99,12 +107,12 @@ public class BoxDestination extends TeleportDestination {
 
     @Override
     @OverridingMethodsMustInvokeSuper
-    public void readFromYaml(YamlConfiguration yaml) {
-        super.readFromYaml(yaml);
+    public TeleportDestination readFromYaml(ConfigurationSection yaml) {
 
         xScale = yaml.getDouble("xscale");
         yScale = yaml.getDouble("yscale");
         zScale = yaml.getDouble("zscale");
+        return super.readFromYaml(yaml);
     }
 
 
@@ -120,13 +128,41 @@ public class BoxDestination extends TeleportDestination {
 
     @Override
     public void sendDisplayParticles(Player... players) {
-        new ParticleBuilder(Particle.DUST)
+        for (int i = 0; i < Math.min((int)getVolume() * 2, 50); i++) {
+            new ParticleBuilder(Particle.DUST)
+                    .location(getDestination())
+                    .count(1)
+                    .color(color)
+                    .receivers(players)
+                    .extra(0)
+                    .spawn();
+        }
+
+        //region Corner Particles
+
+        //----------= Corner Particles =-----------------------------------------------------------------------------
+
+        var cornerParticle = new ParticleBuilder(Particle.DUST)
                 .location(location)
-                .count((int)getVolume() * 2)
-                .offset(xScale/2, yScale/2, zScale/2)
-                .color(Color.RED)
-                .receivers(players)
-                .spawn();
+                .count(5)
+                .color(color)
+                .extra(0)
+                .receivers(players);
+
+        double halfXScale = xScale/2;
+        double halfYScale = yScale/2;
+        double halfZScale = zScale/2;
+
+        cornerParticle.location(getCenterWithOffset(-halfXScale, -halfYScale, -halfZScale)).spawn();
+        cornerParticle.location(getCenterWithOffset(-halfXScale, -halfYScale, halfZScale)).spawn();
+        cornerParticle.location(getCenterWithOffset(-halfXScale, halfYScale, -halfZScale)).spawn();
+        cornerParticle.location(getCenterWithOffset(-halfXScale, halfYScale, halfZScale)).spawn();
+        cornerParticle.location(getCenterWithOffset(halfXScale, -halfYScale, -halfZScale)).spawn();
+        cornerParticle.location(getCenterWithOffset(halfXScale, -halfYScale, halfZScale)).spawn();
+        cornerParticle.location(getCenterWithOffset(halfXScale, halfYScale, -halfZScale)).spawn();
+        cornerParticle.location(getCenterWithOffset(halfXScale, halfYScale, halfZScale)).spawn();
+
+        //endregion
     }
 
     /**

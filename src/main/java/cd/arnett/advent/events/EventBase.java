@@ -6,21 +6,31 @@ import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.ReadYaml;
 import cd.arnett.advent.events.annotations.WriteYaml;
 import cd.arnett.advent.events.annotations.data.*;
+import cd.arnett.advent.events.controls.*;
+import cd.arnett.advent.events.controls.registration.AddRegistrationCommand;
+import cd.arnett.advent.events.controls.registration.RemoveRegistrationCommand;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
+import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.google.common.collect.HashBasedTable;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
+import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.function.TriFunction;
+import org.apache.commons.lang3.reflect.MethodUtils;
+import org.apache.logging.log4j.util.TriConsumer;
+import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.springframework.core.annotation.AnnotatedElementUtils;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 
 /**
@@ -30,7 +40,7 @@ import java.util.stream.Collectors;
 public abstract class EventBase {
 
     HashMap<UUID, PlayerEventStatus> registeredPlayers = new HashMap<>();
-    HashMap<Class<? extends Annotation>, ArrayList<Method>> callbacks = new HashMap<>();
+    HashMap<Class<? extends Annotation>, HashMap<Method, Annotation>> callbacks = new HashMap<>();
 
     /**
      * stores data from modules
@@ -59,60 +69,22 @@ public abstract class EventBase {
         //go through each method to store callbacks (so it doesn't have to search at runtime)
         for(Method method : getClass().getMethods())
         {
-            //get annotations of overrided methods filtered by there types
-            Set<Annotation> annotations = AnnotatedElementUtils.findAllMergedAnnotations(method, Set.of(
-                    EventControl.class,
-                    ReadYaml.class,
-                    WriteYaml.class,
-                    OnEventStart.class,
-                    OnEventStop.class,
-                    OnInitialize.class,
-                    ModuleDataProvider.class
-            ));
 
-            //convert to class set
-            HashSet<Class<? extends Annotation>> annotationClasses = new HashSet<>();
-            annotations.forEach(annotation -> {
-                annotationClasses.add(annotation.annotationType());
+            //get annotations of override methods filtered by there types
+            HashSet<Annotation> annotations = new HashSet<>();
+            MethodUtils.getOverrideHierarchy(method, ClassUtils.Interfaces.INCLUDE).forEach(higherarchyMethod -> {
+                annotations.addAll(Arrays.asList(higherarchyMethod.getAnnotations()));
             });
 
-            if(annotationClasses.contains(EventControl.class))
+
+            for (Annotation annotation : annotations)
             {
-                //check that it is the correct return type
-                if(Cattamand.class.isAssignableFrom(method.getReturnType()))
-                {
-                    callbacks.computeIfAbsent(EventControl.class, (_) -> new ArrayList<>()).add(method);
-                }
+                callbacks.computeIfAbsent(annotation.annotationType(),
+                        ann -> new HashMap<>()).put(method, annotation);
             }
-            else if(annotationClasses.contains(ReadYaml.class))
-            {
-                //check that it is the correct parameter type
-                if(YamlConfiguration.class.isAssignableFrom(method.getParameterTypes()[0]))
-                {
-                    callbacks.computeIfAbsent(ReadYaml.class, (_) -> new ArrayList<>()).add(method);
-                }
-            }
-            else if(annotationClasses.contains(WriteYaml.class))
-            {
-                //check that it is the correct return type
-                if(YamlConfiguration.class.isAssignableFrom(method.getReturnType()))
-                {
-                    callbacks.computeIfAbsent(WriteYaml.class, (_) -> new ArrayList<>()).add(method);
-                }
-            }
-            else if(annotationClasses.contains(OnEventStart.class))
-            {
-                callbacks.computeIfAbsent(OnEventStart.class, (_) -> new ArrayList<>()).add(method);
-            }
-            else if(annotationClasses.contains(OnEventStop.class))
-            {
-                callbacks.computeIfAbsent(OnEventStop.class, (_) -> new ArrayList<>()).add(method);
-            }
-            else if(annotationClasses.contains(OnInitialize.class))
-            {
-                callbacks.computeIfAbsent(OnInitialize.class, (_) -> new ArrayList<>()).add(method);
-            }
-            else if(method.isAnnotationPresent(ModuleDataProvider.class))
+
+
+            if(method.isAnnotationPresent(ModuleDataProvider.class))
             {
                 ModuleDataProvider[] trackedListAnnotations = method.getAnnotationsByType(ModuleDataProvider.class);
                 for(ModuleDataProvider ann : trackedListAnnotations)
@@ -138,19 +110,39 @@ public abstract class EventBase {
      * @param foreachResult What to do with the result
      * @param params What parameters to pass
      */
-    void invokeCallbacks(Class<? extends Annotation> type, Consumer<Object> foreachResult, Object... params)
+    void invokeCallbacks(Class<? extends Annotation> type, BiConsumer<Object, Annotation> foreachResult, Object... params)
     {
-        callbacks.get(type).forEach(method -> {
+        callbacks.getOrDefault(type, new HashMap<>(0)).forEach((method, annotation) -> {
             try {
                 if(foreachResult != null)
-                    foreachResult.accept(method.invoke(this, params));
+                    foreachResult.accept(method.invoke(this, params), annotation);
+                else
+                    method.invoke(this, params);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
         });
     }
 
+    //region Overloads
+
+    /*=================================================================================================
+                        -  Overloads  -
+    =================================================================================================*/
+
+    /**
+     * Invokes callbacks of type
+     * @param type type of callbacks to invoke
+     */
+    void invokeCallbacks(Class<? extends Annotation> type) {
+        invokeCallbacks(type, null);
+    }
+
+
     //endregion
+
+    //endregion
+
 
 
     //region Abstract properties
@@ -164,6 +156,12 @@ public abstract class EventBase {
      * @return Identification of this event's type, used for specifying registered event types creating events
      */
     public abstract NamespacedKey eventKey();
+
+    /**
+     * @return Whether players have to be registered with the event beforehand to join. If false,
+     * players will be registered if not already when attempting to join
+     */
+    public abstract boolean requiresRegistration();
 
 
     //endregion
@@ -187,7 +185,7 @@ public abstract class EventBase {
     public void startEvent()
     {
         isActive = true;
-        invokeCallbacks(OnEventStart.class, null);
+        invokeCallbacks(OnEventStart.class);
     }
 
     /**
@@ -196,25 +194,41 @@ public abstract class EventBase {
     public void stopEvent()
     {
         isActive = false;
-        invokeCallbacks(OnEventStop.class, null);
+        invokeCallbacks(OnEventStop.class);
     }
 
     /**
-     * Makes a player join the event (Absent -> Playing)
-     * @param player player to add
+     * Makes a player join the event if registered (Absent -> Playing)
+     * @param player player who is joining
      */
-    public void joinEvent(Player player)
+    public void join(Player player)
     {
-        registeredPlayers.put(player.getUniqueId(), PlayerEventStatus.PLAYING);
+        var id = player.getUniqueId();
+
+        //leave if we require registration and player is not registered
+        if(requiresRegistration() && !registeredPlayers.containsKey(id))
+        {
+            return;
+        }
+
+        //set player to playing
+        registeredPlayers.put(id, PlayerEventStatus.PLAYING);
+        invokeCallbacks(OnJoinEvent.class, null, player);
+
     }
 
     /**
      * forces a player to leave the event (if you want to revoke registration this is different)
-     * @param id ID of player to remove
+     * @param player Player who is leaving
      */
-    public void leaveEvent(UUID id)
+    public void leave(Player player)
     {
-        registeredPlayers.remove(id);
+        var id = player.getUniqueId();
+        if(registeredPlayers.containsKey(id))
+        {
+            registeredPlayers.put(id, PlayerEventStatus.ABSENT);
+            invokeCallbacks(OnLeaveEvent.class, null, player);
+        }
     }
 
     /**
@@ -232,17 +246,25 @@ public abstract class EventBase {
      */
     public List<Cattamand> getCommandControls() {
 
-        commandControls.addAll(callbacks.get(EventControl.class).stream().map(method -> {
-            try {
-                return (Cattamand) method.invoke(this);
-            } catch (IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException(e);
-            }
-        }).toList());
+        commandControls.add(new JoinEventCommand());
+        commandControls.add(new JoinEventCommand());
+        commandControls.add(new LeaveEventCommand());
+        commandControls.add(new SaveEventCommand());
+        commandControls.add(new StopEventCommand());
+        commandControls.add(new StartEventCommand());
+        commandControls.add(new EventInfoCommand());
+        commandControls.add(new LiteralCattamand("registrations", List.of(
+                new AddRegistrationCommand(),
+                new RemoveRegistrationCommand()
+        )));
+
+        invokeCallbacks(EventControl.class, (result, annotation) -> {
+            commandControls.add((Cattamand)result);
+        });
+
         return commandControls;
 
     }
-
 
 
     //endregion
@@ -269,15 +291,17 @@ public abstract class EventBase {
 
     /**
      * Called when a player joins an event
-     * @param player player which was added
+     * @param player player who joined
      */
+    @OnJoinEvent
     public abstract void onJoinEvent(Player player);
 
     /**
-     * Called when a player was removed from an event
-     * @param id ID of removed player
+     * Called when a player leaves an event
+     * @param player player who left
      */
-    public abstract void onRemoveFromEvent(UUID id);
+    @OnLeaveEvent
+    public abstract void onLeaveEvent(Player player);
 
 
     //endregion
@@ -291,7 +315,7 @@ public abstract class EventBase {
     =================================================================================================*/
 
     /**
-     * Writes data to yaml data for saving, Override thi
+     * Writes data to yaml data for saving
      */
     @OverridingMethodsMustInvokeSuper
     public YamlConfiguration writeToYaml()
@@ -300,21 +324,17 @@ public abstract class EventBase {
 
         //write players
         var playerMap = getPlayerStatusMap();
-        var stringPlayerMap = playerMap.entrySet().stream().collect(Collectors.toMap(
-                (entry) -> entry.getKey().toString(),
-                (entry) -> entry.getValue().disconnected().name())
-        );
-        yaml.set("players", stringPlayerMap);
+        yaml.set("players", playerMap.keySet().stream().map(UUID::toString).toList());
 
         //write modules
-        invokeCallbacks(WriteYaml.class, (result) -> {
+        invokeCallbacks(WriteYaml.class, (result, annotation) -> {
             YamlConfiguration moduleYaml = ((YamlConfiguration)result);
 
             moduleYaml.getKeys(false).forEach(key -> {
                 if(!yaml.contains(key))
                     yaml.set(key, moduleYaml.get(key));
             });
-        }, yaml);
+        });
 
         return yaml;
     }
@@ -327,12 +347,16 @@ public abstract class EventBase {
     public void readFromYaml(YamlConfiguration yaml)
     {
         //read players
-        yaml.getConfigurationSection("players").getValues(false).forEach((id, stat) -> {
-            registeredPlayers.put(UUID.fromString(id), PlayerEventStatus.valueOf((String) stat));
+        List<String> stringPlayers = yaml.getStringList("players");
+
+        stringPlayers.forEach(player -> {
+            registeredPlayers.put(UUID.fromString(player), PlayerEventStatus.ABSENT);
         });
 
+        System.out.println("reading yaml for " + eventKey());
+        System.out.println("read size " + callbacks.get(ReadYaml.class).size());
         //read modules
-        invokeCallbacks(WriteYaml.class, null, yaml);
+        invokeCallbacks(ReadYaml.class, null, yaml);
 
     }
 
@@ -350,9 +374,29 @@ public abstract class EventBase {
     /**
      * Gets a set of all registered players
      */
-    public HashSet<UUID> getPlayers()
+    public HashSet<UUID> getRegisteredPlayers()
     {
         return new HashSet<>(registeredPlayers.keySet());
+    }
+
+    /**
+     * Gets a set of all registered players who are online (not PLAYING, but online)
+     */
+    public List<Player> getOnlinePlayers()
+    {
+        return registeredPlayers.keySet().stream().map(Bukkit::getPlayer).filter(Objects::nonNull).toList();
+    }
+
+    /**
+     * Gets a set of all registered players who are online (not PLAYING, but online)
+     */
+    public List<Player> getPlayingPlayers()
+    {
+        return registeredPlayers.entrySet().stream().filter(entry ->
+                entry.getValue() == PlayerEventStatus.PLAYING
+        ).map(entry ->
+                Bukkit.getPlayer(entry.getKey())
+        ).filter(Objects::nonNull).toList();
     }
 
     /**
@@ -456,25 +500,27 @@ public abstract class EventBase {
     =================================================================================================*/
 
     /**
-     * Registers a player for this event, removes them from the revoked list if present
-     * @param id ID of player to register
+     * Registers a player for this event (overload)
+     * @param player Profile of player to register
      */
-    public void register(UUID id)
+    public void register(PlayerProfile player)
     {
-        registeredPlayers.put(id, PlayerEventStatus.ABSENT);
+        registeredPlayers.put(player.getId(), PlayerEventStatus.ABSENT);
+        invokeCallbacks(OnRegistrationAdd.class, null, player);
     }
 
 
     /**
      * Revokes Registration from an event (and removes them if they are playing)
-     * @param id ID of player to register
+     * @param player Profile of player to register
      */
-    public void revokeRegistration(UUID id)
+    public void revokeRegistration(PlayerProfile player)
     {
-        if(registeredPlayers.get(id) == PlayerEventStatus.PLAYING)
-            leaveEvent(id);
+        if(registeredPlayers.get(player.getId()) == PlayerEventStatus.PLAYING)
+            leave(Bukkit.getPlayer(player.getId()));
 
-        registeredPlayers.remove(id);
+        registeredPlayers.remove(player.getId());
+        invokeCallbacks(OnRegistrationAdd.class, null, player);
     }
 
     //region Overloads
@@ -483,22 +529,22 @@ public abstract class EventBase {
 
 
     /**
-     * Registers a player for this event (overload)
-     * @param player Player to register
+     * Registers a player for this event, removes them from the revoked list if present
+     * @param id ID of player to register
      */
-    public void register(Player player)
+    public void register(UUID id)
     {
-        register(player.getUniqueId());
+        register(Bukkit.createProfile(id));
     }
 
 
     /**
      * Revokes Registration from an event (and removes them if they are playing) (overload)
-     * @param player Player to register
+     * @param id ID of Player to register
      */
-    public void revokeRegistration(Player player)
+    public void revokeRegistration(UUID id)
     {
-        revokeRegistration(player.getUniqueId());
+        revokeRegistration(Bukkit.createProfile(id));
     }
 
     //endregion
@@ -538,11 +584,11 @@ public abstract class EventBase {
     {
         for(Annotation ann : method.getAnnotations())
         {
-            if(automatedAnnotationTypes.contains(ann.getClass()))
+            if(readingMethods.containsKey(ann.annotationType()))
             {
                 automaticDataKeys.computeIfAbsent(
                         ann,
-                        _ -> new ArrayList<>()
+                        annn -> new ArrayList<>()
                 ).add(key);
             }
         }
@@ -552,13 +598,13 @@ public abstract class EventBase {
      * @return YamlConfiguration with all automatically written saved to it
      */
     @WriteYaml
-    YamlConfiguration writeAutomaticData()
+    public YamlConfiguration writeAutomaticData()
     {
         YamlConfiguration yaml = new YamlConfiguration();
 
         automaticDataKeys.forEach((annotation, keys) -> {
             keys.forEach(key -> {
-                writingMethods.get(annotation.getClass()).accept(annotation, yaml, key, moduleData.get(key));
+                writingMethods.get(annotation.annotationType()).accept(annotation, yaml, key, moduleData.get(key));
             });
         });
 
@@ -569,36 +615,21 @@ public abstract class EventBase {
      * @param yaml YamlConfiguration to read in automatically handled data
      */
     @ReadYaml
-    void readAutomaticData(YamlConfiguration yaml)
+    public void readAutomaticData(YamlConfiguration yaml)
     {
         automaticDataKeys.forEach((annotation, keys) -> {
             keys.forEach(key -> {
-                moduleData.put(key, readingMethods.get(annotation).apply(annotation, yaml, key));
+                try {
+                    moduleData.put(key, readingMethods.get(annotation.annotationType()).apply(annotation, yaml, key));
+                }
+                catch (Exception e)
+                {
+                    System.err.println("Advent Unable to read data Module type for: " + annotation.annotationType());
+                    e.printStackTrace();
+                }
             });
-        });
-
-        //for each data entry of this type
-        automaticDataKeys.get(HashSetModuleData.class).forEach(key -> {
-        });
-
-        automaticDataKeys.get(UUIDHashMapModuleData.class).forEach(key -> {
-            HashMap<UUID, Integer> map = (HashMap<UUID, Integer>)moduleData.get(key);
-            yaml.getConfigurationSection(key).getValues(false).forEach((id, value) -> {
-                map.put(UUID.fromString(id), (Integer) value);
-            });
-
         });
     }
-
-    /**
-     * Set of all annotations to track
-     */
-    static Set<Class<? extends Annotation>> automatedAnnotationTypes = Set.of(
-            IntegerModuleData.class,
-            StringModuleData.class,
-            HashSetModuleData.class,
-            UUIDHashMapModuleData.class
-    );
 
 
     @FunctionalInterface
@@ -620,46 +651,54 @@ public abstract class EventBase {
     {
         //reading
         readingMethods.put(
-                IntegerModuleData.class, (_, yaml, key)
+                IntegerModuleData.class, (ann, yaml, key)
                         -> yaml.getInt(key)
         );
         readingMethods.put(
-                BooleanModuleData.class, (_, yaml, key)
+                BooleanModuleData.class, (ann, yaml, key)
                         -> yaml.getBoolean(key)
         );
         readingMethods.put(
-                FloatModuleData.class, (_, yaml, key)
+                FloatModuleData.class, (ann, yaml, key)
                         -> (float)yaml.getDouble(key)
         );
         readingMethods.put(
-                DoubleModuleData.class, (_, yaml, key)
+                DoubleModuleData.class, (ann, yaml, key)
                         -> yaml.getDouble(key)
         );
         readingMethods.put(
-                StringModuleData.class, (_, yaml, key)
+                StringModuleData.class, (ann, yaml, key)
                         -> yaml.getString(key)
+        );
+        readingMethods.put(
+                UUIDModuleData.class, (ann, yaml, key)
+                        -> UUID.fromString(yaml.getString(key))
         );
 
         //writing
         writingMethods.put(
-                IntegerModuleData.class, (_, yaml, key, value)
+                IntegerModuleData.class, (ann, yaml, key, value)
                         -> yaml.set(key, value)
         );
         writingMethods.put(
-                BooleanModuleData.class, (_, yaml, key, value)
+                BooleanModuleData.class, (ann, yaml, key, value)
                         -> yaml.set(key, value)
         );
         writingMethods.put(
-                FloatModuleData.class, (_, yaml, key, value)
+                FloatModuleData.class, (ann, yaml, key, value)
                         -> yaml.set(key, value)
         );
         writingMethods.put(
-                DoubleModuleData.class, (_, yaml, key, value)
+                DoubleModuleData.class, (ann, yaml, key, value)
                         -> yaml.set(key, value)
         );
         writingMethods.put(
-                StringModuleData.class, (_, yaml, key, value)
+                StringModuleData.class, (ann, yaml, key, value)
                         -> yaml.set(key, value)
+        );
+        writingMethods.put(
+                UUIDModuleData.class, (ann, yaml, key, value)
+                        -> yaml.set(key, value.toString())
         );
 
 
@@ -670,18 +709,38 @@ public abstract class EventBase {
 
 
         readingMethods.put(
-                HashSetModuleData.class, (_, yaml, key)
+                HashSetModuleData.class, (ann, yaml, key)
                         -> {
-                    List<?> list = yaml.getList(key);
-                    if(list != null)
-                        return new HashSet<>(list);
-                    return new HashSet<>();
+                    HashSet<Object> set = new HashSet<>();
+                    ConfigurationSection section = yaml.getConfigurationSection(key);
+                    if(section == null)
+                        return set;
+
+                    section.getValues(false).forEach((id, value) -> {
+                        set.add(
+                                readingMethods.get(
+                                        ((HashSetModuleData)ann).value()
+                                ).apply(null, section, id)
+                        );
+                    });
+                    return set;
                 }
         );
 
         writingMethods.put(
                 HashSetModuleData.class, (ann, yaml, key, value)
-                        -> yaml.set(key, new ArrayList<>((HashSet<?>)value))
+                        -> {
+                    ConfigurationSection section = yaml.createSection(key);
+                    int i = 0;
+
+                    for (Object entry : (HashSet<Object>) value)
+                    {
+                        writingMethods.get(((HashSetModuleData)ann).value()).accept(
+                                null, section, Integer.toString(i), entry
+                        );
+                        i++;
+                    }
+                }
         );
 
 
@@ -698,6 +757,9 @@ public abstract class EventBase {
                         -> {
                     HashMap<UUID, Object> map = new HashMap<>();
                     ConfigurationSection section = yaml.getConfigurationSection(key);
+                    if(section == null)
+                        return map;
+
                     section.getValues(false).forEach((id, value) -> {
                         map.put(
                                 UUID.fromString(id),
@@ -734,6 +796,9 @@ public abstract class EventBase {
                         -> {
                     HashMap<String, Object> map = new HashMap<>();
                     ConfigurationSection section = yaml.getConfigurationSection(key);
+                    if(section == null)
+                        return map;
+
                     section.getValues(false).forEach((id, value) -> {
                         map.put(
                                 id,
@@ -759,6 +824,101 @@ public abstract class EventBase {
 
 
         //endregion
+    }
+
+    //endregion
+
+
+    //region Event Info
+
+    /*=================================================================================================
+                        -  Event Info  -
+    =================================================================================================*/
+
+
+    /**
+     * @return A list of event information sections found by functions tagged with @ModuleInfoProvider
+     */
+    public final HashBasedTable<EventInfoProvider, String, Object> getEventInfo()
+    {
+        HashBasedTable<EventInfoProvider, String, Object> infoSections = HashBasedTable.create();
+
+        invokeCallbacks(EventInfoProvider.class, (result, annotation) -> {
+            EventInfoProvider info = ((EventInfoProvider)annotation);
+
+            infoSections.row(info).putAll((Map<String, Object>) result);
+        });
+
+        return infoSections;
+    }
+
+
+    /**
+     * @return Provides information section on what players are actively playing in the event
+     */
+    @EventInfoProvider(name = "Registered", separate = true)
+    public Map<String, Object> registeredInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+        StringBuilder output = new StringBuilder();
+        var players = getRegisteredPlayers();
+
+        AtomicInteger counter = new AtomicInteger(0);
+        players.stream().map(Bukkit::getOfflinePlayer).map(OfflinePlayer::getName).forEach(name -> {
+            boolean even = counter.getAndIncrement() % 2 == 0;
+
+            output.append(even ? "<color:#c4c4c4>" : "</color:#c4c4c4>").append(name).append(' ');
+
+        });
+
+        sectionMap.put("Count", players.size());
+        sectionMap.put("Players", output.toString());
+
+        return sectionMap;
+    }
+
+
+    /**
+     * @return Provides information section on what players are actively playing in the event
+     */
+    @EventInfoProvider(name = "Playing", separate = true)
+    public Map<String, Object> playingInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+        StringBuilder output = new StringBuilder();
+        var players = getPlayingPlayers();
+
+        AtomicInteger counter = new AtomicInteger(0);
+        players.stream().map(OfflinePlayer::getName).forEach(name -> {
+            boolean even = counter.getAndIncrement() % 2 == 0;
+
+            output.append(even ? "<color:#c4c4c4>" : "</color:#c4c4c4>").append(name).append(' ');
+
+        });
+
+        sectionMap.put("Count", players.size());
+        sectionMap.put("Players", output.toString());
+
+        return sectionMap;
+    }
+
+
+    /**
+     * @return Provides information section on what players are actively playing in the event
+     */
+    @EventInfoProvider(name = "Basic", separate = false)
+    public Map<String, Object> basicInfo()
+    {
+        HashMap<String, Object> sectionMap = new HashMap<>();
+
+        int registeredSize = getRegisteredPlayers().size();
+
+        sectionMap.put("Registered Count", registeredSize);
+        sectionMap.put("Playing Count", getPlayingPlayers().size() + " out of " + registeredSize + " registered");
+        sectionMap.put("<hover:show_text:'Whether the event is currentley running'>Event State</hover>",
+                isActive ?  "<bold><green>ACTIVE<reset>" : "<bold><red>INACTIVE<reset>");
+
+        return sectionMap;
     }
 
     //endregion

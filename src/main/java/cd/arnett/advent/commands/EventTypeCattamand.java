@@ -1,4 +1,4 @@
-package cd.arnett.advent.commandTree;
+package cd.arnett.advent.commands;
 
 import cd.arnett.advent.EventManager;
 import cd.arnett.advent.events.EventBase;
@@ -18,12 +18,12 @@ public abstract class EventTypeCattamand<T extends EventType> extends Cattamand 
 
     public EventBase getEvent(CommandContext<CommandSourceStack> context)
     {
-        return EventManager.getEvent(context.getArgument("event", NamespacedKey.class));
+        return EventManager.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
     }
 
     public T getEventModule(CommandContext<CommandSourceStack> context)
     {
-        return (T)EventManager.getEvent(context.getArgument("event", NamespacedKey.class));
+        return (T)EventManager.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
     }
 
     @Override
@@ -46,9 +46,10 @@ public abstract class EventTypeCattamand<T extends EventType> extends Cattamand 
         }
         catch (Exception e)
         {
+            e.printStackTrace();
             ArgumentHelper.getPlayerSender(context).sendMessage(
                     MiniMessage.miniMessage().deserialize("<red> Event of name <bold>\""
-                            + eventName + "\"</bold> Is not an Elimination Event")
+                            + eventName + "\"</bold> Could not run " + getName() + " command for this event")
             );
             return 0;
         }

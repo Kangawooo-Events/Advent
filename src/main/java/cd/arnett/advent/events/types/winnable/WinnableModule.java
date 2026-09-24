@@ -1,9 +1,11 @@
 package cd.arnett.advent.events.types.winnable;
 
+import cd.arnett.advent.Advent;
 import cd.arnett.advent.events.annotations.EventControl;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
+import cd.arnett.advent.events.annotations.data.UUIDModuleData;
 import cd.arnett.advent.events.types.EventType;
 import cd.arnett.advent.events.types.winnable.controls.GrantWinCommand;
 import cd.arnett.advent.events.types.winnable.controls.RevokeWinCommand;
@@ -18,10 +20,10 @@ public interface WinnableModule extends EventType {
     String winnersListName = "winners";
 
 
-    //region Automatic Data
+    //region Module Data
 
     /*=================================================================================================
-                        -  Automatic Data  -
+                        -  Module Data  -
     =================================================================================================*/
 
 
@@ -29,10 +31,19 @@ public interface WinnableModule extends EventType {
      * Provides a list of Remaining players to moduleData
      */
     @ModuleDataProvider(winnersListName)
-    @HashSetModuleData(UUIDHashMapModuleData.class)
+    @HashSetModuleData(UUIDModuleData.class)
     default HashSet<UUID> winningPlayers()
     {
         return new HashSet<>();
+    }
+
+
+    /**
+     * @return the actual list used to store players who won, not a copy
+     */
+    default HashSet<UUID> getWinnersListData()
+    {
+        return this.getModuleData(winnersListName);
     }
 
 
@@ -50,7 +61,7 @@ public interface WinnableModule extends EventType {
      */
     default boolean hasPlayerWon(UUID playerId)
     {
-        return getModulePlayerList(winnersListName).contains(playerId);
+        return getWinnersListData().contains(playerId);
     }
 
     /**
@@ -58,7 +69,7 @@ public interface WinnableModule extends EventType {
      */
     default List<UUID> getPlayersWon()
     {
-        return List.copyOf(getModulePlayerList(winnersListName));
+        return List.copyOf(getWinnersListData());
     }
 
     //region Overloads
@@ -72,7 +83,7 @@ public interface WinnableModule extends EventType {
      */
     default boolean hasPlayerWon(Player player)
     {
-        return getModulePlayerList(winnersListName).contains(player.getUniqueId());
+        return getWinnersListData().contains(player.getUniqueId());
     }
 
 
@@ -95,9 +106,16 @@ public interface WinnableModule extends EventType {
      */
     default void grantWin(UUID... winningPlayers)
     {
-        var winners = getModulePlayerList(winnersListName);
+        var winners = getWinnersListData();
+        var event = getEvent();
         for(UUID id : winningPlayers)
         {
+            if(event.requiresRegistration() && !event.isRegistered(id))
+            {
+                Advent.logger.warning("Attempted Granting win to player who is not registered");
+                continue;
+            }
+
             if(winners.contains(id))
                 continue;
             winners.add(id);
@@ -111,9 +129,15 @@ public interface WinnableModule extends EventType {
      */
     default void revokeWin(UUID... revokedPlayers)
     {
-        var winners = getModulePlayerList(winnersListName);
+        var winners = getWinnersListData();
+        var event = getEvent();
         for(UUID id : revokedPlayers)
         {
+            if(event.requiresRegistration() && !event.isRegistered(id))
+            {
+                continue;
+            }
+
             if(!winners.contains(id))
                 continue;
             winners.remove(id);
@@ -132,7 +156,11 @@ public interface WinnableModule extends EventType {
      */
     default void grantWin(Player... winningPlayers)
     {
-        grantWin(Arrays.stream(winningPlayers).map(Player::getUniqueId).toArray(UUID[]::new));
+        for(Player player : winningPlayers)
+        {
+            grantWin(player.getUniqueId());
+        }
+
     }
 
     /**
@@ -141,7 +169,10 @@ public interface WinnableModule extends EventType {
      */
     default void revokeWin(Player... revokedPlayers)
     {
-        revokeWin(Arrays.stream(revokedPlayers).map(Player::getUniqueId).toArray(UUID[]::new));
+        for(Player player : revokedPlayers)
+        {
+            revokeWin(player.getUniqueId());
+        }
     }
 
 
@@ -158,9 +189,9 @@ public interface WinnableModule extends EventType {
     =================================================================================================*/
 
 
-    void onWin(UUID... winningPlayers);
+    void onWin(UUID winningPlayer);
 
-    void onWinRevoked(UUID... revokedPlayers);
+    void onWinRevoked(UUID revokedPlayer);
 
 
     //endregion
@@ -177,7 +208,7 @@ public interface WinnableModule extends EventType {
     default Cattamand winnableControls()
     {
         return new LiteralCattamand(
-                "win",
+                "wins",
                 List.of(
                         new GrantWinCommand(),
                         new RevokeWinCommand()

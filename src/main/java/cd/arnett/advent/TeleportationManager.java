@@ -1,10 +1,12 @@
 package cd.arnett.advent;
 
 import cd.arnett.advent.destinations.TeleportDestination;
+import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.google.common.collect.HashBasedTable;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
@@ -15,7 +17,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -29,10 +30,14 @@ public class TeleportationManager {
      */
     static HashBasedTable<NamespacedKey, String, ArrayList<TeleportDestination>> eventDestinations = HashBasedTable.create();
 
+    /**
+     * Map of all the registered destination types by their identifier
+     */
     static HashMap<NamespacedKey, Class<? extends TeleportDestination>> destinationTypes = new HashMap<>();
+    static ArrayList<Cattamand> creationCommand = new ArrayList<>();
 
     static Set<UUID> playersInDevView = new HashSet<>();
-    static BukkitTask displayTask;
+    static BukkitTask displayTask = null;
 
 
     //region Modify Data
@@ -154,18 +159,65 @@ public class TeleportationManager {
 
         AtomicInteger counter = new AtomicInteger(0);
 
+        //sort destinations into capped and non capped
+        HashMap<TeleportDestination, Integer> modifiableDestinationCapacities = new HashMap<>();
+        ArrayList<TeleportDestination> uncappedDestinations = new ArrayList<>();
+
+        //calculate total available slots
+        int total = 0;
+        for(var destination : destinations)
+        {
+            int capacity = destination.getCapacity();
+
+            if(capacity <= 0)
+            {
+                uncappedDestinations.add(destination);
+                continue;
+            }
+
+            modifiableDestinationCapacities.put(destination, capacity);
+            total += capacity;
+        }
+
+
+        AtomicInteger rollSize = new AtomicInteger(Math.max(total, players.length));
         //batch out teleports
-        Bukkit.getScheduler().runTaskTimerAsynchronously(Advent.singleton, () -> {
-            var rand = new Random();
+        Bukkit.getScheduler().runTaskTimerAsynchronously(Advent.singleton, (task) -> {
+            try {
 
-            for (int i = 0; i < 10 && (counter.incrementAndGet() < players.length); i++) {
-                Player player = players[counter.get()];
+                var rand = new Random();
 
-                player.teleportAsync(
-                        destinations.get(
-                                rand.nextInt(destinations.size())
-                        ).getSafeDestination()
-                );
+                for (int i = 0; i < 10 && (counter.get() < players.length); i++) {
+                    Player player = players[counter.get()];
+                    int roll = rand.nextInt(rollSize.get());
+                    counter.getAndIncrement();
+
+                    for(var entry : modifiableDestinationCapacities.entrySet()) {
+                        roll -= entry.getValue();
+                        if(roll <= 0)
+                        {
+                            //teleport and decrement capacity
+                            player.teleportAsync(entry.getKey().getSafeDestination());
+                            modifiableDestinationCapacities.put(entry.getKey(), entry.getValue() - 1);
+                            break;
+                        }
+                    }
+
+                    //roll greater than capacity
+                    player.teleportAsync(
+                            uncappedDestinations.get(
+                                    rand.nextInt(uncappedDestinations.size())
+                            ).getSafeDestination()
+                    );
+                    rollSize.getAndDecrement();
+                }
+
+                if(counter.get() >= players.length)
+                    task.cancel();
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
             }
         }, 0, 1);
 
@@ -173,6 +225,26 @@ public class TeleportationManager {
         return true;
     }
 
+
+    //region Overloads
+
+    //----------= Overloads =-----------------------------------------------------------------------------
+
+
+    /**
+     * Teleports the provided players to random destinations under the given event and tags
+     * @param eventID Event destinations to search
+     * @param destinationTag Tag of the destinations we want
+     * @param players players to be teleported
+     * @return True if destinations were found, Teleports *may still fail but there were targets to teleport to
+     */
+    public static boolean teleportToDestination(NamespacedKey eventID, String destinationTag, List<Player> players)
+    {
+        return teleportToDestination(eventID, destinationTag, players.toArray(Player[]::new));
+    }
+
+
+    //endregion
 
 
     //endregion
@@ -194,10 +266,15 @@ public class TeleportationManager {
             return;
 
         displayTask = Bukkit.getScheduler().runTaskTimerAsynchronously(Advent.singleton, () -> {
+
+            Player[] devViewers = playersInDevView.stream().map(Bukkit::getPlayer).filter(Objects::nonNull).toArray(Player[]::new);
+
             eventDestinations.values().forEach(
-                    list -> list.forEach(TeleportDestination::sendDisplayParticles)
+                    list -> list.forEach(
+                            teleportDestination -> teleportDestination.sendDisplayParticles(devViewers)
+                    )
             );
-        }, 0, 10);
+        }, 0, 10L);
     }
 
     /**
@@ -218,6 +295,22 @@ public class TeleportationManager {
         playersInDevView.remove(player);
     }
 
+    /**
+     * Toggles a players dev view
+     * @param player player to toggle
+     */
+    public static void toggleDevView(UUID player)
+    {
+        if(playersInDevView.contains(player))
+        {
+            playersInDevView.remove(player);
+        }
+        else
+        {
+            playersInDevView.add(player);
+        }
+    }
+
 
     //endregion
 
@@ -228,10 +321,22 @@ public class TeleportationManager {
                         -  Registration  -
     =================================================================================================*/
 
-
+    /**
+     * Registers a destination type MUST BE DONE AT STARTUP
+     * @param type Class of destination type to register, MUST have no args constructor
+     */
     public static void registerType(Class<? extends TeleportDestination> type) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         TeleportDestination dest = type.getConstructor().newInstance();
+        creationCommand.add(dest.creationCommand());
         destinationTypes.put(dest.getTypeId(), type);
+    }
+
+    /**
+     * @return all creation commands for the registered destination types
+     */
+    public static List<? extends Cattamand> getDestinationCreationCommands()
+    {
+        return List.copyOf(creationCommand);
     }
 
 
@@ -248,66 +353,60 @@ public class TeleportationManager {
     /**
      * Saves data to file
      */
-    public static void writeData() throws IOException {
-
-        var saveFuture = new CompletableFuture<Void>();
+    public static void writeDataNow() throws IOException {
 
         //save in async
-        saveFuture.thenRunAsync(() -> {
-            Advent.logger.info("Saving Destinations");
+        Advent.logger.info("Saving Destinations");
 
-            //get the path of the data folder
-            File dataFolder = Advent.singleton.getDataFolder();
-            Path dataFolderPath = dataFolder.toPath();
+        //get the path of the data folder
+        File dataFolder = Advent.singleton.getDataFolder();
+        Path dataFolderPath = dataFolder.toPath();
 
-            //get the path to the Menus directory
-            Path destFolderPath = dataFolderPath.resolve("Destinations");
+        //get the path to the Menus directory
+        Path destFolderPath = dataFolderPath.resolve("Destinations");
 
-            //make sure that menus directory exists
-            if(!Files.exists(destFolderPath))
-            {
-                try {
-                    Files.createDirectories(destFolderPath);
-                } catch (IOException e) {
-                    Advent.logger.warning("Unable to save destinations!");
-                    throw new RuntimeException(e);
+        eventDestinations.rowMap().forEach((row, values) -> {
+            Path destinationFolderPath = destFolderPath.resolve(row.getNamespace()).resolve(row.getKey());
+
+            //go though each entry and create its folder + contents
+            values.forEach((tag, dests) -> {
+
+                //get the paths and yaml setup
+                Path tagPath = destinationFolderPath.resolve(tag).resolve("destinations.yaml");
+                YamlConfiguration yaml = new YamlConfiguration();
+
+                //add each entry
+                for (int i = 0; i < dests.size(); i++) {
+                    yaml.set(Integer.toString(i), dests.get(i).writeToYaml());
                 }
-            }
-
-            eventDestinations.rowMap().forEach((row, values) -> {
-                Path destinationFolderPath = destFolderPath.resolve(row.getNamespace()).resolve(row.getKey());
-
-                //go though each entry and create its folder + contents
-                values.forEach((tag, dests) -> {
-
-                    //get the paths and yaml setup
-                    Path tagPath = destinationFolderPath.resolve(tag).resolve("destinations.yaml");
-                    YamlConfiguration yaml = new YamlConfiguration();
-
-                    //add each entry
-                    for (int i = 0; i < dests.size(); i++) {
-                        yaml.set(Integer.toString(i), dests.get(i).writeToYaml());
-                    }
 
 
-                    //make sure the Yaml file exists
-                    if(!Files.exists(tagPath))
-                    {
-                        //create the file
-                        try {
-                            Files.createFile(tagPath);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-
-                    //save to file
+                //make sure the Yaml file exists
+                if(!Files.exists(tagPath.getParent()))
+                {
+                    //create the directories
                     try {
-                        yaml.save(tagPath.toFile());
+                        Files.createDirectories(tagPath.getParent());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-                });
+                }
+                if(!Files.exists(tagPath))
+                {
+                    //create the file
+                    try {
+                        Files.createFile(tagPath);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                //save to file
+                try {
+                    yaml.save(tagPath.toFile());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             });
         });
     }
@@ -336,25 +435,32 @@ public class TeleportationManager {
         Files.walk(
                 dataFolderPath
         ).filter(
-                path -> path.getFileName().equals("destinations.yaml")
-
+                path ->
+                {
+                    return path.getFileName().toString().equals("destinations.yaml");
+                }
         ).forEach(path -> {
 
             var yaml = YamlConfiguration.loadConfiguration(path.toFile());
-            var typeKey = NamespacedKey.fromString(yaml.getString("type"));
-            var type = destinationTypes.get(typeKey);
 
-            if(type == null)
-            {
-                Advent.logger.warning("Unable to read destinations.yaml at " + path + " No registered type: " + typeKey);
-                return;
-            }
+            yaml.getKeys(false).forEach(destinationKey -> {
+                ConfigurationSection section = yaml.getConfigurationSection(destinationKey);
 
-            try {
-                type.getConstructor().newInstance().readFromYaml(yaml);
-            } catch (Exception e) {
-                Advent.logger.warning("Unable to load destinations.yaml at " + path + " No registered type: " + typeKey);
-            }
+                var typeKey = NamespacedKey.fromString(section.getString("type"));
+                var type = destinationTypes.get(typeKey);
+
+                if(type == null)
+                {
+                    Advent.logger.warning("Unable to read destinations.yaml at " + path + " No registered type: " + typeKey);
+                    return;
+                }
+
+                try {
+                    addDestination(type.getConstructor().newInstance().readFromYaml(section));
+                } catch (Exception e) {
+                    Advent.logger.warning("Unable to load destinations.yaml at " + path + " No registered type: " + typeKey);
+                }
+            });
         });
     }
 

@@ -2,17 +2,21 @@ package cd.arnett.advent.destinations.circle;
 
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.destinations.TeleportDestination;
+import cd.arnett.advent.destinations.box.command.CreateBoxDestinationCommand;
+import cd.arnett.advent.destinations.circle.command.CreateCircleDestinationCommand;
 import cd.arnett.advent.destinations.spot.SpotDestination;
+import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.destroystokyo.paper.ParticleBuilder;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 import org.bukkit.*;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 public class CircleDestination extends TeleportDestination {
 
     public double radius;
-    public boolean fill;
+    public boolean fill = true;
 
 
     //region Initalization
@@ -22,8 +26,7 @@ public class CircleDestination extends TeleportDestination {
     =================================================================================================*/
 
 
-    public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot, double radius, boolean fill) {
-        this.fill = fill;
+    public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot, double radius) {
         this.radius = radius;
         return super.initialize(eventId, tag, spot);
     }
@@ -31,6 +34,22 @@ public class CircleDestination extends TeleportDestination {
     @Override
     public TeleportDestination initialize(NamespacedKey eventId, String tag, Location spot) {
         return new SpotDestination().initialize(eventId, tag, spot);
+    }
+
+
+    //endregion
+
+    //region Optional Properties
+
+    /*=================================================================================================
+                        -  Optional Properties  -
+    =================================================================================================*/
+
+
+    public TeleportDestination setFill(boolean fill)
+    {
+        this.fill = fill;
+        return this;
     }
 
 
@@ -60,8 +79,8 @@ public class CircleDestination extends TeleportDestination {
             r = radius;
         }
 
-        double randX = r * Math.cos(a) + radius;
-        double randZ = r * Math.sin(a) + radius;
+        double randX = r * Math.cos(a) + radius + location.getX();
+        double randZ = r * Math.sin(a) + radius + location.getZ();
 
         return new Location(location.getWorld(), randX, location.y(), randZ);
     }
@@ -74,12 +93,17 @@ public class CircleDestination extends TeleportDestination {
     @Override
     public String getDisplayInfo() {
         return String.format("Circle - X %.2f, Y %.2f, Z %.2f, V %.2f",
-                location.getX(), location.getY(), location.getZ());
+                location.getX(), location.getY(), location.getZ(), getVolume());
     }
 
     @Override
     public NamespacedKey getTypeId() {
         return new NamespacedKey(Advent.singleton, "circle");
+    }
+
+    @Override
+    public Cattamand creationCommand() {
+        return new CreateCircleDestinationCommand();
     }
 
     //endregion
@@ -105,11 +129,11 @@ public class CircleDestination extends TeleportDestination {
 
     @Override
     @OverridingMethodsMustInvokeSuper
-    public void readFromYaml(YamlConfiguration yaml) {
-        super.readFromYaml(yaml);
-
+    public TeleportDestination readFromYaml(ConfigurationSection yaml) {
         radius = yaml.getDouble("radius");
         fill = yaml.getBoolean("fill");
+
+        return super.readFromYaml(yaml);
     }
 
 
@@ -126,12 +150,13 @@ public class CircleDestination extends TeleportDestination {
 
     @Override
     public void sendDisplayParticles(Player... players) {
-        for (int i = 0; i < (int)getVolume()*2; i++) {
+        for (int i = 0; i < Math.min((int)getVolume() * 2, 50); i++) {
             new ParticleBuilder(Particle.DUST)
                     .location(getDestination())
                     .count(1)
-                    .color(Color.RED)
+                    .color(color)
                     .receivers(players)
+                    .extra(0)
                     .spawn();
         }
     }
@@ -150,9 +175,9 @@ public class CircleDestination extends TeleportDestination {
         if(diffY > 1)
             return false;
 
-        double radiusDifference = Math.sqrt(Math.pow(diffX, 2) + Math.pow(diffZ, 2)) - radius;
+        double radiusDifference = Math.abs(Math.sqrt(Math.pow(diffX, 2) + Math.pow(diffZ, 2)) - radius);
 
-        return (fill && radiusDifference <= 0) || (!fill && radiusDifference <= 0.5 && radiusDifference >= -.5f);
+        return (fill && radiusDifference <= radius) || (!fill && radiusDifference <= 0.5f);
     }
 
 

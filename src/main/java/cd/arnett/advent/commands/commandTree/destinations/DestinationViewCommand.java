@@ -1,4 +1,4 @@
-package cd.arnett.advent.commandTree.destinations;
+package cd.arnett.advent.commands.commandTree.destinations;
 
 import cd.arnett.advent.TeleportationManager;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -13,23 +13,32 @@ import org.bukkit.entity.Player;
 
 import java.util.List;
 
-public class DevViewCommand extends Cattamand {
+public class DestinationViewCommand extends Cattamand {
+
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        TeleportationManager.toggleDevView(ArgumentHelper.getPlayerSender(context).getUniqueId());
+        return 0;
+    }
+
+    public int executeWithTargets(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         boolean view = context.getArgument("devview", boolean.class);
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
+        targets.forEach(target -> setPlayerDevView(target, view));
+        return 0;
+    }
 
+    void setPlayerDevView(Player target, boolean view)
+    {
         if (view)
         {
-            targets.forEach(target -> TeleportationManager.addToDevView(target.getUniqueId()));
+            TeleportationManager.addToDevView(target.getUniqueId());
         }
         else
         {
-            targets.forEach(target -> TeleportationManager.removeFromDevView(target.getUniqueId()));
+            TeleportationManager.removeFromDevView(target.getUniqueId());
         }
-
-        return 0;
     }
 
     @Override
@@ -37,11 +46,19 @@ public class DevViewCommand extends Cattamand {
         return List.of(
                 new Cattarameter(
                         "devview",
-                        BoolArgumentType.bool()
+                        BoolArgumentType.bool(),
+                        null,
+                        (ctx) -> {
+                            boolean view = ctx.getArgument("devview", boolean.class);
+                            setPlayerDevView(ArgumentHelper.getPlayerSender(ctx), view);
+                            return 0;
+                        }
                 ),
                 new Cattarameter(
                         "targets",
-                        ArgumentTypes.players()
+                        ArgumentTypes.players(),
+                        null,
+                        this::executeWithTargets
                 )
         );
     }
@@ -58,6 +75,6 @@ public class DevViewCommand extends Cattamand {
 
     @Override
     public List<String> getAliases() {
-        return List.of();
+        return List.of("");
     }
 }

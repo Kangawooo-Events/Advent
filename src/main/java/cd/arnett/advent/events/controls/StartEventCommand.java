@@ -1,10 +1,7 @@
 package cd.arnett.advent.events.controls;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.commandTree.EventBaseCattamand;
-import cd.arnett.advent.commandTree.EventTypeCattamand;
+import cd.arnett.advent.commands.EventBaseCattamand;
 import cd.arnett.advent.events.EventBase;
-import cd.arnett.advent.events.types.EventType;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;

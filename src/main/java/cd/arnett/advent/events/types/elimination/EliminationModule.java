@@ -1,14 +1,18 @@
 package cd.arnett.advent.events.types.elimination;
 
+import cd.arnett.advent.Advent;
 import cd.arnett.advent.events.annotations.EventControl;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
+import cd.arnett.advent.events.annotations.OnRegistrationAdd;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
+import cd.arnett.advent.events.annotations.data.UUIDModuleData;
 import cd.arnett.advent.events.types.elimination.controls.EliminateCommand;
 import cd.arnett.advent.events.types.elimination.controls.InstateCommand;
 import cd.arnett.advent.events.types.winnable.WinnableModule;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
+import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -17,6 +21,7 @@ public interface EliminationModule extends WinnableModule {
 
     String remainingListName = "remaining";
     String eliminatedListName = "eliminated";
+
 
     //region Module Data
 
@@ -28,7 +33,7 @@ public interface EliminationModule extends WinnableModule {
      * Provides a list of Remaining players to moduleData
      */
     @ModuleDataProvider(remainingListName)
-    @HashSetModuleData(UUIDHashMapModuleData.class)
+    @HashSetModuleData(UUIDModuleData.class)
     default HashSet<UUID> remainingPlayers()
     {
         return new HashSet<>();
@@ -38,14 +43,47 @@ public interface EliminationModule extends WinnableModule {
      * Provides a list of Eliminated players to moduleData
      */
     @ModuleDataProvider(eliminatedListName)
-    @HashSetModuleData(UUIDHashMapModuleData.class)
+    @HashSetModuleData(UUIDModuleData.class)
     default HashSet<UUID> eliminatedPlayers()
     {
         return new HashSet<>();
     }
 
 
+    /**
+     * @return the actual list used to store eliminated players, not a copy
+     */
+    default HashSet<UUID> getEliminatedListData()
+    {
+        return this.getModuleData(eliminatedListName);
+    }
+
+    /**
+     * @return the actual list used to store remaining players, not a copy
+     */
+    default HashSet<UUID> getRemainingListData()
+    {
+        return this.getModuleData(remainingListName);
+    }
+
     //endregion
+
+
+    //region Listeners
+
+    /*=================================================================================================
+                        -  Listeners  -
+    =================================================================================================*/
+
+    @OnRegistrationAdd
+    default void registerWithEliminations(PlayerProfile playerProfile)
+    {
+        getRemainingListData().add(playerProfile.getId());
+    }
+
+
+    //endregion
+
 
     //region Events
 
@@ -55,15 +93,14 @@ public interface EliminationModule extends WinnableModule {
 
     /**
      * Called when a player is eliminated
-     * @param eliminatedPlayer
      */
     void onEliminate(UUID eliminatedPlayer);
 
     /**
      * Called when a player is added to the remaining players
-     * @param eliminatedPlayer
      */
-    void onInstate(UUID eliminatedPlayer);
+    void onInstate(UUID instatedPlayer);
+
 
 
     //endregion
@@ -81,7 +118,7 @@ public interface EliminationModule extends WinnableModule {
      */
     default boolean isPlayerRemaining(UUID playerId)
     {
-        return getModulePlayerList(remainingListName).contains(playerId);
+        return getRemainingListData().contains(playerId);
     }
 
     /**
@@ -89,8 +126,7 @@ public interface EliminationModule extends WinnableModule {
      */
     default List<UUID> getPlayersRemaining()
     {
-
-        return List.copyOf(getModulePlayerList(remainingListName));
+        return List.copyOf(getRemainingListData());
     }
 
     /**
@@ -98,7 +134,7 @@ public interface EliminationModule extends WinnableModule {
      */
     default List<UUID> getPlayersEliminated()
     {
-        return List.copyOf(getModulePlayerList(eliminatedListName));
+        return List.copyOf(getEliminatedListData());
     }
 
     //region Overloads
@@ -112,7 +148,7 @@ public interface EliminationModule extends WinnableModule {
      */
     default boolean isPlayerRemaining(Player player)
     {
-        return getModulePlayerList(remainingListName).contains(player.getUniqueId());
+        return getRemainingListData().contains(player.getUniqueId());
     }
 
 
@@ -135,10 +171,16 @@ public interface EliminationModule extends WinnableModule {
      */
     default void eliminate(UUID... playerIds)
     {
+        var event = getEvent();
         for (UUID playerId : playerIds)
         {
-            getModulePlayerList(remainingListName).remove(playerId);
-            getModulePlayerList(eliminatedListName).add(playerId);
+            if(event.requiresRegistration() && !event.isRegistered(playerId))
+            {
+                continue;
+            }
+
+            getRemainingListData().remove(playerId);
+            getEliminatedListData().add(playerId);
             onEliminate(playerId);
         }
     }
@@ -149,10 +191,17 @@ public interface EliminationModule extends WinnableModule {
      */
     default void instate(UUID... playerIds)
     {
+        var event = getEvent();
         for (UUID playerId : playerIds)
         {
-            getModulePlayerList(remainingListName).add(playerId);
-            getModulePlayerList(eliminatedListName).remove(playerId);
+            if(event.requiresRegistration() && !event.isRegistered(playerId))
+            {
+                Advent.logger.warning("Attempted instating player who is not registered");
+                continue;
+            }
+
+            getRemainingListData().add(playerId);
+            getEliminatedListData().remove(playerId);
             onInstate(playerId);
         }
     }

@@ -1,22 +1,16 @@
 package cd.arnett.advent.events.types.elimination.controls;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.commandTree.EventTypeCattamand;
-import cd.arnett.advent.events.EventBase;
+import cd.arnett.advent.commands.EventTypeCattamand;
 import cd.arnett.advent.events.types.elimination.EliminationModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import com.destroystokyo.paper.profile.PlayerProfile;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
-import org.bukkit.NamespacedKey;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.entity.Player;
 
 import java.util.Collection;
 import java.util.List;
@@ -31,7 +25,8 @@ public class InstateCommand extends EventTypeCattamand<EliminationModule> {
         targets.forEach(playerProfile -> eventModule.instate(playerProfile.getId()));
 
         ArgumentHelper.getPlayerSender(context).sendMessage(
-                MiniMessage.miniMessage().deserialize("<green> Player(s) Instated")
+                MiniMessage.miniMessage().deserialize("<green> Instated"
+                        + (getEvent(context).requiresRegistration() ? " Registered Player(s)" : "Player(s)"))
         );
 
         return 0;

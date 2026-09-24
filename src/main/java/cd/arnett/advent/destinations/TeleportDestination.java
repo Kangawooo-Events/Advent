@@ -1,9 +1,12 @@
 package cd.arnett.advent.destinations;
 
 import cd.arnett.advent.Advent;
+import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
@@ -14,6 +17,8 @@ public abstract class TeleportDestination {
     protected Location location;
     protected NamespacedKey eventId;
     protected String tag;
+    protected Color color = Color.RED;
+    protected int capacity = -1;
 
 
     //region Initialization
@@ -35,6 +40,39 @@ public abstract class TeleportDestination {
         readFromYaml(yaml);
         return this;
     }
+
+    //endregion
+
+
+    //region Optional Properties
+
+    /*=================================================================================================
+                        -  Optional Properties  -
+    =================================================================================================*/
+
+
+    /**
+     * Sets the color particles will display as
+     * @param color Color to set to
+     * @return this object
+     */
+    public TeleportDestination setColor(Color color)
+    {
+        this.color = color;
+        return this;
+    }
+
+    /**
+     * Sets the max number of players who can teleport to this location
+     * @param capacity Capacity to set to
+     * @return this object
+     */
+    public TeleportDestination setCapacity(int capacity)
+    {
+        this.capacity = capacity;
+        return this;
+    }
+
 
     //endregion
 
@@ -107,6 +145,23 @@ public abstract class TeleportDestination {
         return locations;
     }
 
+
+    /**
+     * @return a copy of center location with an offset specified
+     */
+    public Location getCenterWithOffset(double x, double y, double z)
+    {
+        return new Location(location.getWorld(), location.getX() - x, location.getY() - y, location.getZ() - z);
+    }
+
+    /**
+     * @return capacity of this destination
+     */
+    public int getCapacity()
+    {
+        return capacity;
+    }
+
     //endregion
 
 
@@ -170,9 +225,28 @@ public abstract class TeleportDestination {
      */
     public abstract void sendDisplayParticles(Player... players);
 
+    /**
+     * Determines whether a spot is within the bounds of the destination (ideally with a bit of padding for thin one)
+     * @param spot Spot to check
+     * @return Whether the spot is in bounds
+     */
     public abstract boolean isWithinBounds(Location spot);
 
+    /**
+     * @return String which describes this destination
+     */
     public abstract String getDisplayInfo();
+
+    /**
+     * @return The Creation command for this destination type.<br>
+     * Arguments available from previous segments in the command tree are:<br>
+     *     - NamespacedKey "event", the event Id specified for this destination <br>
+     *     - String "tag", the tag specified for this destination <br>
+     *     - BlockPosition "position", the position specified for this destination
+     *         which takes the BlockPosition to resolve <br>
+     *
+     */
+    public abstract Cattamand creationCommand();
 
     //endregion
 
@@ -194,6 +268,8 @@ public abstract class TeleportDestination {
         yaml.set("location", location);
         yaml.set("eventid", eventId.toString());
         yaml.set("tag", tag);
+        yaml.set("color", color);
+        yaml.set("capacity", capacity);
 
         return yaml;
     }
@@ -202,18 +278,21 @@ public abstract class TeleportDestination {
      * Reads data in from Yaml
      */
     @OverridingMethodsMustInvokeSuper
-    public void readFromYaml(YamlConfiguration yaml)
+    public TeleportDestination readFromYaml(ConfigurationSection yaml)
     {
         try {
             eventId = NamespacedKey.fromString(yaml.getString("eventid"));
             tag = yaml.getString("tag");
             location = yaml.getLocation("location");
+            color = yaml.getColor("color");
+            capacity = yaml.getInt("capacity");
         }
         catch (Exception e)
         {
             Advent.logger.warning("UNABLE TO READ IN DESTINATION");
             e.printStackTrace();
         }
+        return this;
     }
 
     /**

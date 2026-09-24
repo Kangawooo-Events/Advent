@@ -7,6 +7,7 @@ import cd.arnett.advent.events.types.EventType;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,7 +41,7 @@ public interface TeamsModule extends EventType {
                         }
                     },
                     team.name() + "TeamPlayers",
-                    new ArrayList<UUID>()
+                    new HashSet<UUID>()
             );
         });
 

@@ -64,7 +64,7 @@ public class EventManager {
      */
     public static HashSet<UUID> getRegisteredEventPlayers(NamespacedKey eventKey)
     {
-        return registeredEvents.get(eventKey).getPlayers();
+        return registeredEvents.get(eventKey).getRegisteredPlayers();
     }
 
 
@@ -280,9 +280,9 @@ public class EventManager {
     =================================================================================================*/
 
     /**
-     * Saves data to plugin data file
+     * Saves data to plugin data file in async
      */
-    public void writeData()
+    public static void saveData()
     {
         CompletableFuture<Void> saveFuture = new CompletableFuture<>();
 
@@ -294,31 +294,29 @@ public class EventManager {
             Path dataFolderPath = dataFolder.toPath();
 
             //get the path to the Menus directory
-            Path destFolderPath = dataFolderPath.resolve("Events");
-
-            //make sure that menus directory exists
-            if(!Files.exists(destFolderPath))
-            {
-                try {
-                    Files.createDirectories(destFolderPath);
-                } catch (IOException e) {
-                    Advent.logger.warning("Unable to save events!");
-                    throw new RuntimeException(e);
-                }
-            }
+            Path eventFolder = dataFolderPath.resolve("Events");
 
             //write each row to its own folder yaml
             registeredEvents.values().forEach((event) -> {
                 NamespacedKey eventKey = event.eventKey();
-                Path eventFilePath = destFolderPath.resolve(eventKey.getNamespace())
-                                                    .resolve(eventKey.getKey())
-                                                    .resolve("event.yaml");
+                Path eventFilePath = eventFolder.resolve(eventKey.getNamespace())
+                        .resolve(eventKey.getKey())
+                        .resolve("event.yaml");
 
 
                 YamlConfiguration yaml = event.writeToYaml();
 
 
                 //make sure the Yaml file exists
+                if(!Files.exists(eventFilePath.getParent()))
+                {
+                    //create the file
+                    try {
+                        Files.createDirectories(eventFilePath.getParent());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
                 if(!Files.exists(eventFilePath))
                 {
                     //create the file
@@ -337,6 +335,110 @@ public class EventManager {
                 }
             });
         });
+    }
+
+    /**
+     * Saves data to plugin data file in
+     */
+    public static void saveDataNow()
+    {
+        Advent.logger.info("Saving Events");
+
+        //get the path of the data folder
+        File dataFolder = Advent.singleton.getDataFolder();
+        Path dataFolderPath = dataFolder.toPath();
+
+        //get the path to the Menus directory
+        Path eventFolder = dataFolderPath.resolve("Events");
+
+        //write each row to its own folder yaml
+        registeredEvents.values().forEach((event) -> {
+            NamespacedKey eventKey = event.eventKey();
+            Path eventFilePath = eventFolder.resolve(eventKey.getNamespace())
+                    .resolve(eventKey.getKey())
+                    .resolve("event.yaml");
+
+
+            YamlConfiguration yaml = event.writeToYaml();
+
+
+            //make sure the Yaml file exists
+            if(!Files.exists(eventFilePath.getParent()))
+            {
+                //create the file
+                try {
+                    Files.createDirectories(eventFilePath.getParent());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            if(!Files.exists(eventFilePath))
+            {
+                //create the file
+                try {
+                    Files.createFile(eventFilePath);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            //save to file
+            try {
+                yaml.save(eventFilePath.toFile());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    /**
+     * Saves data for a single event
+     * @param event Event to save for
+     */
+    public static void saveSingleEvent(EventBase event)
+    {
+        //get the path of the data folder
+        File dataFolder = Advent.singleton.getDataFolder();
+        Path dataFolderPath = dataFolder.toPath();
+
+        //get the path to the Menus directory
+        NamespacedKey eventKey = event.eventKey();
+        Path eventFolderPath = dataFolderPath.resolve("Events")
+                .resolve(eventKey.getNamespace())
+                .resolve(eventKey.getKey());
+
+        //make sure the directory exists
+        if(!Files.exists(eventFolderPath))
+        {
+            //create the file
+            try {
+                Files.createDirectories(eventFolderPath);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        YamlConfiguration yaml = event.writeToYaml();
+
+        Path eventFilePath = eventFolderPath.resolve("event.yaml");
+
+        //make sure the Yaml file exists
+        if(!Files.exists(eventFilePath))
+        {
+            //create the file
+            try {
+                Files.createFile(eventFilePath);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        //save to file
+        try {
+            yaml.save(eventFilePath.toFile());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     //endregion

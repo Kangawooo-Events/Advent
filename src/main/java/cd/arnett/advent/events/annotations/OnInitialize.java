@@ -6,6 +6,8 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 
 /**
- * Marks methods as one to be called when the Event object is created
+ * Marks PUBLIC methods as one which will be called when the event object is initialized
+ * (before registration with the EventManager).<br>
+ * Method MUST have NO parameters
  */
 public @interface OnInitialize { }

@@ -1,6 +1,6 @@
 package cd.arnett.advent.events.controls.registration;
 
-import cd.arnett.advent.commandTree.EventBaseCattamand;
+import cd.arnett.advent.commands.EventBaseCattamand;
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
@@ -17,7 +17,7 @@ public class RemoveRegistrationCommand extends EventBaseCattamand {
     @Override
     public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
         Collection<PlayerProfile> targets = ArgumentHelper.getPlayerProfilesFromArgs("target", context);
-
+        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98> Revoked Player(s)");
         targets.forEach(target -> event.revokeRegistration(target.getId()));
 
         return 0;

@@ -2,6 +2,9 @@ package cd.arnett.advent.destinations.spot;
 
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.destinations.TeleportDestination;
+import cd.arnett.advent.destinations.circle.command.CreateCircleDestinationCommand;
+import cd.arnett.advent.destinations.spot.command.CreateSpotDestinationCommand;
+import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.destroystokyo.paper.ParticleBuilder;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
@@ -37,6 +40,11 @@ public class SpotDestination extends TeleportDestination {
         return new NamespacedKey(Advent.singleton, "spot");
     }
 
+    @Override
+    public Cattamand creationCommand() {
+        return new CreateSpotDestinationCommand();
+    }
+
     //endregion
 
 
@@ -52,7 +60,8 @@ public class SpotDestination extends TeleportDestination {
         new ParticleBuilder(Particle.DUST)
                 .location(location)
                 .count(5)
-                .color(Color.RED)
+                .extra(0)
+                .color(color)
                 .receivers(players)
                 .spawn();
     }

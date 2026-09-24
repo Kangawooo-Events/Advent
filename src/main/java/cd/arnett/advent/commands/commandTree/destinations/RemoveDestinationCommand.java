@@ -1,43 +1,31 @@
-package cd.arnett.advent.commandTree.destinations.create;
+package cd.arnett.advent.commands.commandTree.destinations;
 
 import cd.arnett.advent.EventManager;
 import cd.arnett.advent.TeleportationManager;
-import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
-import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
-import io.papermc.paper.math.BlockPosition;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 
-public class CreateBoxDestinationCommand extends Cattamand {
+public class RemoveDestinationCommand extends Cattamand {
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-
         NamespacedKey eventId = context.getArgument("event", NamespacedKey.class);
         String tag = context.getArgument("tag", String.class);
-        BlockPosition position = context.getArgument("position", BlockPosition.class);
-        double xSize = context.getArgument("xSize", double.class);
-        double ySize = context.getArgument("ySize", double.class);
-        double zSize = context.getArgument("zSize", double.class);
-
         Player sender = ArgumentHelper.getPlayerSender(context);
 
-        TeleportationManager.addDestination(
-                new BoxDestination().initialize(
-                        eventId, tag,
-                        position.toCenter().toLocation(sender.getWorld()),
-                        xSize, ySize, zSize
-                )
-        );
+        sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<red><bold>Deleted </bold>" + TeleportationManager.removeDestinations(sender.getLocation(), eventId, tag)
+        ));
 
         return 0;
     }
@@ -53,30 +41,21 @@ public class CreateBoxDestinationCommand extends Cattamand {
                 new Cattarameter(
                         "tag",
                         StringArgumentType.string(),
-                        List.of("SPAWN", "POSTEVENT")
-                ),
-                new Cattarameter(
-                        "position",
-                        ArgumentTypes.blockPosition()
-                ),
-                new Cattarameter(
-                        "xSize",
-                        DoubleArgumentType.doubleArg(1)
-                ),
-                new Cattarameter(
-                        "ySize",
-                        DoubleArgumentType.doubleArg(1)
-                ),
-                new Cattarameter(
-                        "zSize",
-                        DoubleArgumentType.doubleArg(1)
+                        (ctx) ->
+                        {
+                            NamespacedKey eventId = ctx.getLastChild().getArgument("event", NamespacedKey.class);
+
+                            var destinations = TeleportationManager.getDestinations(eventId);
+
+                            return destinations.keySet();
+                        }
                 )
         );
     }
 
     @Override
     public String getName() {
-        return "box";
+        return "remove";
     }
 
     @Override

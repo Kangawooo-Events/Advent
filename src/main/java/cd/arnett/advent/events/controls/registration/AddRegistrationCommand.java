@@ -1,6 +1,6 @@
 package cd.arnett.advent.events.controls.registration;
 
-import cd.arnett.advent.commandTree.EventBaseCattamand;
+import cd.arnett.advent.commands.EventBaseCattamand;
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
@@ -17,8 +17,8 @@ public class AddRegistrationCommand extends EventBaseCattamand {
     @Override
     public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
         Collection<PlayerProfile> targets = ArgumentHelper.getPlayerProfilesFromArgs("target", context);
-
         targets.forEach(target -> event.register(target.getId()));
+        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98> Registered Player(s)");
 
         return 0;
     }

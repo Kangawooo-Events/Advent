@@ -3,11 +3,10 @@ package cd.arnett.advent.events.annotations;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-@Retention(RetentionPolicy.RUNTIME)
-
 /**
- * Marks methods as ones that provide Cattamand controls to the event
+ * Marks PUBLIC methods as ones that provide a Cattamand control to the event
  */
+@Retention(RetentionPolicy.RUNTIME)
 public @interface EventControl {
 
 }

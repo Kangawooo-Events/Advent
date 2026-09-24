@@ -6,6 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 
 /**
- * Marks methods as ones that return a YamlConfiguration with its data written to it
+ * Marks PUBLIC methods as one which will be called when the event stops.<br>
+ *  Method MUST have NO parameters
  */
 public @interface OnEventStop { }

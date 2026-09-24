@@ -1,4 +1,4 @@
-package cd.arnett.advent.commandTree;
+package cd.arnett.advent.commands;
 
 import cd.arnett.advent.EventManager;
 import cd.arnett.advent.events.EventBase;
@@ -14,11 +14,17 @@ import org.bukkit.NamespacedKey;
 /**
  * Extension of Cattamand which provides helpful method(s) for making event base control commands
  */
-public abstract class EventBaseCattamand extends EventTypeCattamand<EventType> {
+public abstract class EventBaseCattamand extends Cattamand {
+
+    public EventBase getEvent(CommandContext<CommandSourceStack> context)
+    {
+        return EventManager.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
+    }
 
     @Override
-    public final int execute(CommandContext<CommandSourceStack> context, EventType eventModule) throws CommandSyntaxException {
-        return execute(context, getEvent(context));
+    public final int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        EventBase event = getEvent(context);
+        return execute(context, event);
     }
 
     public abstract int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException;
