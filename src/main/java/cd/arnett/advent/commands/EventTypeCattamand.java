@@ -1,6 +1,6 @@
 package cd.arnett.advent.commands;
 
-import cd.arnett.advent.EventManager;
+import cd.arnett.advent.EventTracker;
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.types.EventType;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -18,12 +18,12 @@ public abstract class EventTypeCattamand<T extends EventType> extends Cattamand 
 
     public EventBase getEvent(CommandContext<CommandSourceStack> context)
     {
-        return EventManager.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
+        return EventTracker.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
     }
 
     public T getEventModule(CommandContext<CommandSourceStack> context)
     {
-        return (T)EventManager.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
+        return (T) EventTracker.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
     }
 
     @Override
@@ -31,7 +31,7 @@ public abstract class EventTypeCattamand<T extends EventType> extends Cattamand 
 
         NamespacedKey eventName = context.getArgument("event", NamespacedKey.class);
 
-        EventBase event = EventManager.getEvent(eventName);
+        EventBase event = EventTracker.getEvent(eventName);
 
         if(event == null)
         {

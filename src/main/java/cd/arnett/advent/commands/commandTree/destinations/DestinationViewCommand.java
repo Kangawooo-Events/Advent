@@ -1,6 +1,6 @@
 package cd.arnett.advent.commands.commandTree.destinations;
 
-import cd.arnett.advent.TeleportationManager;
+import cd.arnett.advent.DestinationManager;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
@@ -18,7 +18,7 @@ public class DestinationViewCommand extends Cattamand {
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        TeleportationManager.toggleDevView(ArgumentHelper.getPlayerSender(context).getUniqueId());
+        DestinationManager.toggleDevView(ArgumentHelper.getPlayerSender(context).getUniqueId());
         return 0;
     }
 
@@ -33,11 +33,11 @@ public class DestinationViewCommand extends Cattamand {
     {
         if (view)
         {
-            TeleportationManager.addToDevView(target.getUniqueId());
+            DestinationManager.addToDevView(target.getUniqueId());
         }
         else
         {
-            TeleportationManager.removeFromDevView(target.getUniqueId());
+            DestinationManager.removeFromDevView(target.getUniqueId());
         }
     }
 

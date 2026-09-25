@@ -1,7 +1,6 @@
 package cd.arnett.advent.destinations.circle.command;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.TeleportationManager;
+import cd.arnett.advent.DestinationManager;
 import cd.arnett.advent.destinations.TeleportDestination;
 import cd.arnett.advent.destinations.circle.CircleDestination;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -28,7 +27,7 @@ public class CreateCircleDestinationCommand extends Cattamand {
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        TeleportationManager.addDestination(createDestination(context));
+        DestinationManager.addDestination(createDestination(context));
         return 0;
     }
 
@@ -86,7 +85,7 @@ public class CreateCircleDestinationCommand extends Cattamand {
                                 "full", "Teleportation result on the inside of the circle",
                                 "hollow", "Teleportation only result on the perimeter of the circle"),
                         (ctx) -> {
-                            TeleportationManager.addDestination(createWithFillCheck(ctx));
+                            DestinationManager.addDestination(createWithFillCheck(ctx));
                             return 0;
                         }
                 ),
@@ -95,7 +94,7 @@ public class CreateCircleDestinationCommand extends Cattamand {
                         ArgumentTypes.namedColor(),
                         null,
                         (ctx) -> {
-                            TeleportationManager.addDestination(createWithColorCheck(ctx));
+                            DestinationManager.addDestination(createWithColorCheck(ctx));
                             return 0;
                         }
                 ),
@@ -104,7 +103,7 @@ public class CreateCircleDestinationCommand extends Cattamand {
                         IntegerArgumentType.integer(),
                         null,
                         (ctx) -> {
-                            TeleportationManager.addDestination(createWithCapacityCheck(ctx));
+                            DestinationManager.addDestination(createWithCapacityCheck(ctx));
                             return 0;
                         }
                 )

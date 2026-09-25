@@ -11,6 +11,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 public abstract class TeleportDestination {
 
@@ -19,6 +20,7 @@ public abstract class TeleportDestination {
     protected String tag;
     protected Color color = Color.RED;
     protected int capacity = -1;
+    protected UUID id;
 
 
     //region Initialization
@@ -32,6 +34,7 @@ public abstract class TeleportDestination {
         this.eventId = eventId;
         this.tag = tag;
         this.location = spot;
+        this.id = UUID.randomUUID();
         return this;
     }
 
@@ -94,6 +97,14 @@ public abstract class TeleportDestination {
 
     public String getTag() {
         return tag;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public Color getColor() {
+        return color;
     }
 
     /**
@@ -270,6 +281,7 @@ public abstract class TeleportDestination {
         yaml.set("tag", tag);
         yaml.set("color", color);
         yaml.set("capacity", capacity);
+        yaml.set("id", id.toString());
 
         return yaml;
     }
@@ -286,6 +298,7 @@ public abstract class TeleportDestination {
             location = yaml.getLocation("location");
             color = yaml.getColor("color");
             capacity = yaml.getInt("capacity");
+            id = UUID.fromString(yaml.getString("id"));
         }
         catch (Exception e)
         {

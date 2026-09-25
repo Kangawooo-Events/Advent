@@ -1,6 +1,6 @@
 package cd.arnett.advent.destinations.spot.command;
 
-import cd.arnett.advent.TeleportationManager;
+import cd.arnett.advent.DestinationManager;
 import cd.arnett.advent.destinations.TeleportDestination;
 import cd.arnett.advent.destinations.spot.SpotDestination;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -38,7 +38,7 @@ public class CreateSpotDestinationCommand extends Cattamand {
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        TeleportationManager.addDestination(createDestination(context));
+        DestinationManager.addDestination(createDestination(context));
         return 0;
     }
 
@@ -62,7 +62,7 @@ public class CreateSpotDestinationCommand extends Cattamand {
                         ArgumentTypes.namedColor(),
                         null,
                         (ctx) -> {
-                            TeleportationManager.addDestination(createWithColorCheck(ctx));
+                            DestinationManager.addDestination(createWithColorCheck(ctx));
                             return 0;
                         }
                 ),
@@ -71,7 +71,7 @@ public class CreateSpotDestinationCommand extends Cattamand {
                         IntegerArgumentType.integer(),
                         null,
                         (ctx) -> {
-                            TeleportationManager.addDestination(createWithCapacityCheck(ctx));
+                            DestinationManager.addDestination(createWithCapacityCheck(ctx));
                             return 0;
                         }
                 )

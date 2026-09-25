@@ -1,11 +1,10 @@
 package cd.arnett.advent.events;
 
 import cd.arnett.advent.Advent;
+import cd.arnett.advent.EventTracker;
 import cd.arnett.advent.events.annotations.*;
-import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.ReadYaml;
 import cd.arnett.advent.events.annotations.WriteYaml;
-import cd.arnett.advent.events.annotations.data.*;
 import cd.arnett.advent.events.controls.*;
 import cd.arnett.advent.events.controls.registration.AddRegistrationCommand;
 import cd.arnett.advent.events.controls.registration.RemoveRegistrationCommand;
@@ -15,19 +14,19 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.google.common.collect.HashBasedTable;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.lang3.function.TriFunction;
 import org.apache.commons.lang3.reflect.MethodUtils;
-import org.apache.logging.log4j.util.TriConsumer;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -65,7 +64,7 @@ public abstract class EventBase {
     /**
      * Finds all annotated callback functions in this object and registers them for their events
      */
-    void loadCallbacks() {
+    final void loadCallbacks() {
         //go through each method to store callbacks (so it doesn't have to search at runtime)
         for(Method method : getClass().getMethods())
         {
@@ -81,24 +80,26 @@ public abstract class EventBase {
             {
                 callbacks.computeIfAbsent(annotation.annotationType(),
                         ann -> new HashMap<>()).put(method, annotation);
-            }
 
 
-            if(method.isAnnotationPresent(ModuleDataProvider.class))
-            {
                 ModuleDataProvider[] trackedListAnnotations = method.getAnnotationsByType(ModuleDataProvider.class);
                 for(ModuleDataProvider ann : trackedListAnnotations)
                 {
                     //clone field to data list
                     try {
-                        moduleData.put(ann.value(), method.invoke(this));
-                        registerAutomaticData(ann.value(), method);
+                        moduleData.put(ann.key(), method.invoke(this));
+                        registerAutomaticData(ann, method);
                     }
                     catch (Exception e)
                     {
                         Advent.logger.warning("Unable to use module data: " + method.getName());
                     }
                 }
+            }
+
+
+            if(method.isAnnotationPresent(ModuleDataProvider.class))
+            {
             }
         }
     }
@@ -110,7 +111,7 @@ public abstract class EventBase {
      * @param foreachResult What to do with the result
      * @param params What parameters to pass
      */
-    void invokeCallbacks(Class<? extends Annotation> type, BiConsumer<Object, Annotation> foreachResult, Object... params)
+    final void invokeCallbacks(Class<? extends Annotation> type, BiConsumer<Object, Annotation> foreachResult, Object... params)
     {
         callbacks.getOrDefault(type, new HashMap<>(0)).forEach((method, annotation) -> {
             try {
@@ -134,7 +135,7 @@ public abstract class EventBase {
      * Invokes callbacks of type
      * @param type type of callbacks to invoke
      */
-    void invokeCallbacks(Class<? extends Annotation> type) {
+    final void invokeCallbacks(Class<? extends Annotation> type) {
         invokeCallbacks(type, null);
     }
 
@@ -182,8 +183,11 @@ public abstract class EventBase {
     /**
      * Call to start event
      */
-    public void startEvent()
+    public final void startEvent()
     {
+        if(isActive)
+            return;
+
         isActive = true;
         invokeCallbacks(OnEventStart.class);
     }
@@ -191,22 +195,26 @@ public abstract class EventBase {
     /**
      * Call to stop event
      */
-    public void stopEvent()
+    public final void stopEvent()
     {
+        if(!isActive)
+            return;
+
         isActive = false;
         invokeCallbacks(OnEventStop.class);
     }
 
     /**
      * Makes a player join the event if registered (Absent -> Playing)
-     * @param player player who is joining
+     * @param player Player who joined
      */
-    public void join(Player player)
+    public final void join(Player player)
     {
         var id = player.getUniqueId();
 
-        //leave if we require registration and player is not registered
-        if(requiresRegistration() && !registeredPlayers.containsKey(id))
+        //leave if we require registration and player is not registered, or they are already playing another event
+        if((requiresRegistration() && !registeredPlayers.containsKey(id))
+                || EventTracker.isPlayingEvent(player))
         {
             return;
         }
@@ -219,13 +227,15 @@ public abstract class EventBase {
 
     /**
      * forces a player to leave the event (if you want to revoke registration this is different)
-     * @param player Player who is leaving
+     * @param player Player who left
      */
-    public void leave(Player player)
+    public final void leave(Player player)
     {
         var id = player.getUniqueId();
-        if(registeredPlayers.containsKey(id))
+
+        if(registeredPlayers.getOrDefault(id, PlayerEventStatus.ABSENT) == PlayerEventStatus.PLAYING)
         {
+            //remove this from their event stack
             registeredPlayers.put(id, PlayerEventStatus.ABSENT);
             invokeCallbacks(OnLeaveEvent.class, null, player);
         }
@@ -236,7 +246,7 @@ public abstract class EventBase {
      * must be called BEFORE this event is registered with the event manager
      * @param control Cattamand to add
      */
-    public void registerCommandControl(Cattamand control)
+    public final void registerCommandControl(Cattamand control)
     {
         commandControls.add(control);
     }
@@ -244,7 +254,7 @@ public abstract class EventBase {
     /**\
      * @return all Cattamand controls provided by the interfaces
      */
-    public List<Cattamand> getCommandControls() {
+    public final List<Cattamand> getCommandControls() {
 
         commandControls.add(new JoinEventCommand());
         commandControls.add(new JoinEventCommand());
@@ -318,13 +328,14 @@ public abstract class EventBase {
      * Writes data to yaml data for saving
      */
     @OverridingMethodsMustInvokeSuper
-    public YamlConfiguration writeToYaml()
+    public final YamlConfiguration writeToYaml()
     {
         YamlConfiguration yaml = new YamlConfiguration();
 
         //write players
         var playerMap = getPlayerStatusMap();
         yaml.set("players", playerMap.keySet().stream().map(UUID::toString).toList());
+        yaml.set("active", isActive);
 
         //write modules
         invokeCallbacks(WriteYaml.class, (result, annotation) -> {
@@ -344,7 +355,7 @@ public abstract class EventBase {
      * @param yaml yaml to read from
      */
     @OverridingMethodsMustInvokeSuper
-    public void readFromYaml(YamlConfiguration yaml)
+    public final void readFromYaml(YamlConfiguration yaml)
     {
         //read players
         List<String> stringPlayers = yaml.getStringList("players");
@@ -352,6 +363,7 @@ public abstract class EventBase {
         stringPlayers.forEach(player -> {
             registeredPlayers.put(UUID.fromString(player), PlayerEventStatus.ABSENT);
         });
+        isActive = yaml.getBoolean("active");
 
         System.out.println("reading yaml for " + eventKey());
         System.out.println("read size " + callbacks.get(ReadYaml.class).size());
@@ -374,7 +386,7 @@ public abstract class EventBase {
     /**
      * Gets a set of all registered players
      */
-    public HashSet<UUID> getRegisteredPlayers()
+    public final HashSet<UUID> getRegisteredPlayers()
     {
         return new HashSet<>(registeredPlayers.keySet());
     }
@@ -382,7 +394,7 @@ public abstract class EventBase {
     /**
      * Gets a set of all registered players who are online (not PLAYING, but online)
      */
-    public List<Player> getOnlinePlayers()
+    public final List<Player> getOnlinePlayers()
     {
         return registeredPlayers.keySet().stream().map(Bukkit::getPlayer).filter(Objects::nonNull).toList();
     }
@@ -390,7 +402,7 @@ public abstract class EventBase {
     /**
      * Gets a set of all registered players who are online (not PLAYING, but online)
      */
-    public List<Player> getPlayingPlayers()
+    public final List<Player> getPlayingPlayers()
     {
         return registeredPlayers.entrySet().stream().filter(entry ->
                 entry.getValue() == PlayerEventStatus.PLAYING
@@ -402,7 +414,7 @@ public abstract class EventBase {
     /**
      * Gets a copy of the registered player status map
      */
-    public HashMap<UUID, PlayerEventStatus> getPlayerStatusMap()
+    public final HashMap<UUID, PlayerEventStatus> getPlayerStatusMap()
     {
         return new HashMap<>(registeredPlayers);
     }
@@ -412,7 +424,7 @@ public abstract class EventBase {
      * @param id Id of Player to check
      * @return Registration status
      */
-    public boolean isRegistered(UUID id)
+    public final boolean isRegistered(UUID id)
     {
         return registeredPlayers.containsKey(id);
     }
@@ -421,7 +433,7 @@ public abstract class EventBase {
      * @param id ID of player to check
      * @return Event status of the provided player
      */
-    public PlayerEventStatus getStatus(UUID id)
+    public final PlayerEventStatus getStatus(UUID id)
     {
         return registeredPlayers.getOrDefault(id, PlayerEventStatus.OMITTED);
     }
@@ -432,9 +444,17 @@ public abstract class EventBase {
      * @param name Name of list
      * @return The object stored in moduleData
      */
-    public Object getModuleData(String name)
+    public final Object getModuleData(String name)
     {
         return moduleData.get(name);
+    }
+
+    /**
+     * @return Whether this event is active
+     */
+    public final boolean isActive()
+    {
+        return isActive;
     }
 
 
@@ -447,7 +467,7 @@ public abstract class EventBase {
      * @param player Player to check
      * @return Registration status
      */
-    public boolean isRegistered(Player player)
+    public final boolean isRegistered(Player player)
     {
         return isRegistered(player.getUniqueId());
     }
@@ -458,7 +478,7 @@ public abstract class EventBase {
      * @param filtered Statuses to filter, if a player is not of one of these it is false
      * @return Registration status
      */
-    public boolean isRegistered(UUID id, PlayerEventStatus... filtered)
+    public final boolean isRegistered(UUID id, PlayerEventStatus... filtered)
     {
         var status = registeredPlayers.get(id);
 
@@ -479,7 +499,7 @@ public abstract class EventBase {
      * @param player Player to check (overload)
      * @return Event status of the provided player
      */
-    public PlayerEventStatus getStatus(Player player)
+    public final PlayerEventStatus getStatus(Player player)
     {
         return getStatus(player.getUniqueId());
     }
@@ -503,7 +523,7 @@ public abstract class EventBase {
      * Registers a player for this event (overload)
      * @param player Profile of player to register
      */
-    public void register(PlayerProfile player)
+    public final void register(PlayerProfile player)
     {
         registeredPlayers.put(player.getId(), PlayerEventStatus.ABSENT);
         invokeCallbacks(OnRegistrationAdd.class, null, player);
@@ -514,13 +534,13 @@ public abstract class EventBase {
      * Revokes Registration from an event (and removes them if they are playing)
      * @param player Profile of player to register
      */
-    public void revokeRegistration(PlayerProfile player)
+    public final void revokeRegistration(PlayerProfile player)
     {
         if(registeredPlayers.get(player.getId()) == PlayerEventStatus.PLAYING)
             leave(Bukkit.getPlayer(player.getId()));
 
         registeredPlayers.remove(player.getId());
-        invokeCallbacks(OnRegistrationAdd.class, null, player);
+        invokeCallbacks(OnRegistrationRemove.class, null, player);
     }
 
     //region Overloads
@@ -532,7 +552,7 @@ public abstract class EventBase {
      * Registers a player for this event, removes them from the revoked list if present
      * @param id ID of player to register
      */
-    public void register(UUID id)
+    public final void register(UUID id)
     {
         register(Bukkit.createProfile(id));
     }
@@ -542,7 +562,7 @@ public abstract class EventBase {
      * Revokes Registration from an event (and removes them if they are playing) (overload)
      * @param id ID of Player to register
      */
-    public void revokeRegistration(UUID id)
+    public final void revokeRegistration(UUID id)
     {
         revokeRegistration(Bukkit.createProfile(id));
     }
@@ -562,271 +582,176 @@ public abstract class EventBase {
     /**
      * tracks keys to data which are of a special type which get automatic yaml reading and writing
      */
-    HashMap<Annotation, ArrayList<String>> automaticDataKeys = new HashMap<>();
+    final HashMap<Annotation, ArrayList<String>> automaticDataKeys = new HashMap<>();
+
+    /**
+     * Tracks the ModuleDataProvider of each automated data element by their String keys. Used to get data
+     * tracked on the ModuleDataProvider like File Name
+     */
+    final HashMap<String, ModuleDataProvider> automaticModuleAnnotations = new HashMap<>();
 
     /**
      * A dynamic way to add automated data to the module data, Call BEFORE reading in YAML (OnInitalize)
      * @param annotation Type of data to add
-     * @param name Name to put the data under
+     * @param dataProvider Data Provider Annotation
      * @param data Data to save
      */
-    public void registerAutomatedData(Annotation annotation, String name, Object data)
+    public final void registerAutomatedData(Annotation annotation, ModuleDataProvider dataProvider, Object data)
     {
-        moduleData.put(name, data);
-        automaticDataKeys.computeIfAbsent(annotation, (ann) -> new ArrayList<>()).add(name);
+        moduleData.put(dataProvider.key(), data);
+        automaticModuleAnnotations.put(dataProvider.key(), dataProvider);
+        automaticDataKeys.computeIfAbsent(annotation, (ann) -> new ArrayList<>()).add(dataProvider.key());
     }
 
     /**
      * Checks for Module data type annotations which we have yaml read and write definitions for already
      * @param method Method to check
      */
-    void registerAutomaticData(String key, Method method)
+    final void registerAutomaticData(ModuleDataProvider dataProvider, Method method)
     {
         for(Annotation ann : method.getAnnotations())
         {
-            if(readingMethods.containsKey(ann.annotationType()))
+            if(AutomaticModuleDataManager.readingMethods.containsKey(ann.annotationType()))
             {
                 automaticDataKeys.computeIfAbsent(
                         ann,
                         annn -> new ArrayList<>()
-                ).add(key);
+                ).add(dataProvider.key());
+                automaticModuleAnnotations.put(dataProvider.key(), dataProvider);
             }
         }
     }
 
     /**
-     * @return YamlConfiguration with all automatically written saved to it
+     * @return YamlConfiguration with all automatically written saved to it. File Creation is handled here
+     * separate because of the different files some data can be under
      */
     @WriteYaml
-    public YamlConfiguration writeAutomaticData()
+    public final YamlConfiguration writeAutomaticData()
     {
-        YamlConfiguration yaml = new YamlConfiguration();
+        HashMap<String, YamlConfiguration> configurationFiles = new HashMap<>();
+        configurationFiles.put("event", new YamlConfiguration());
+
+        //get event data file path
+        Path eventDirectory = Advent.singleton.getDataFolder().toPath().resolve("Events")
+                .resolve(eventKey().getNamespace()).resolve(eventKey().getKey());
 
         automaticDataKeys.forEach((annotation, keys) -> {
             keys.forEach(key -> {
-                writingMethods.get(annotation.annotationType()).accept(annotation, yaml, key, moduleData.get(key));
+
+                var dataProvider = automaticModuleAnnotations.get(key);
+
+                //if it is for the normal event file then send in the yaml we are returning
+                if(dataProvider.fileBasename().equalsIgnoreCase("event"))
+                {
+                    AutomaticModuleDataManager.writingMethods.get(annotation.annotationType())
+                            .accept(annotation, configurationFiles.get("event"), key, moduleData.get(key));
+                }
+                else
+                {
+                    String fileBasename = dataProvider.fileBasename();
+
+                    //it is a custom yaml file so we have to create and save it here
+                    if(!Files.exists(eventDirectory))
+                    {
+                        try {
+                            Files.createDirectories(eventDirectory);
+                        } catch (IOException e) {
+                            Advent.logger.warning("UNABLE TO SAVE " + key);
+                            e.printStackTrace();
+                        }
+                    }
+
+                    //write to yaml
+                    YamlConfiguration separateYaml = configurationFiles.computeIfAbsent(
+                            fileBasename
+                            , (k) -> new YamlConfiguration()
+                    );
+                    AutomaticModuleDataManager.writingMethods.get(annotation.annotationType())
+                            .accept(annotation, separateYaml, key, moduleData.get(key));
+
+                }
             });
         });
 
-        return yaml;
+        configurationFiles.forEach((baseName, yaml) -> {
+            if(baseName.equalsIgnoreCase("event"))
+            {
+                return;
+            }
+
+            Path yamlFile = eventDirectory.resolve(baseName + ".yaml");
+            if(!Files.exists(yamlFile))
+            {
+                try {
+                    Files.createFile(yamlFile);
+                } catch (IOException e) {
+                    Advent.logger.warning("UNABLE TO SAVE " + baseName);
+                    e.printStackTrace();
+                }
+            }
+
+            try {
+                yaml.save(yamlFile.toFile());
+            } catch (IOException e) {
+                Advent.logger.warning("UNABLE TO SAVE " + baseName);
+                e.printStackTrace();
+            }
+        });
+
+        return configurationFiles.get("event");
     }
 
     /**
      * @param yaml YamlConfiguration to read in automatically handled data
      */
     @ReadYaml
-    public void readAutomaticData(YamlConfiguration yaml)
+    public final void readAutomaticData(YamlConfiguration yaml)
     {
+        //get the path to the Menus directory
+        Path eventDirectory = Advent.singleton.getDataFolder()
+                .toPath()
+                .resolve("Events")
+                .resolve(eventKey().getNamespace())
+                .resolve(eventKey().getKey());
+
         automaticDataKeys.forEach((annotation, keys) -> {
             keys.forEach(key -> {
-                try {
-                    moduleData.put(key, readingMethods.get(annotation.annotationType()).apply(annotation, yaml, key));
-                }
-                catch (Exception e)
+                var dataProvider = automaticModuleAnnotations.get(key);
+                if(dataProvider.key().equalsIgnoreCase("event"))
                 {
-                    System.err.println("Advent Unable to read data Module type for: " + annotation.annotationType());
-                    e.printStackTrace();
+                    try {
+                        var storedData = AutomaticModuleDataManager.readingMethods
+                                .get(annotation.annotationType()).apply(annotation, yaml, key);
+                        if(storedData != null)
+                            moduleData.put(key, storedData);
+                    }
+                    catch (Exception e)
+                    {
+                        System.err.println("Advent Unable to read data Module type for: " + annotation.annotationType());
+                        e.printStackTrace();
+                    }
+                }
+                else
+                {
+                    Path sectionFile = eventDirectory.resolve(dataProvider.fileBasename());
+
+                    //no data to read
+                    if(!Files.exists(sectionFile))
+                    {
+                        return;
+                    }
+
+                    var sectionYaml = YamlConfiguration.loadConfiguration(sectionFile.toFile());
+
+                    var storedData = AutomaticModuleDataManager.readingMethods
+                            .get(annotation.annotationType()).apply(annotation, sectionYaml, key);
+                    if(storedData != null)
+                        moduleData.put(key, storedData);
                 }
             });
         });
     }
-
-
-    @FunctionalInterface
-    interface QuadConsumer<A, B, C, D> {
-        void accept(A a, B b, C c, D d);
-    }
-
-    /**
-     * Map of writing functions for each tracked annotation type
-     */
-    static HashMap<Class<? extends Annotation>, QuadConsumer<Annotation, ConfigurationSection, String, Object>> writingMethods = new HashMap<>();
-
-    /**
-     * Map of reading functions for each tracked annotation type
-     */
-    static HashMap<Class<? extends Annotation>, TriFunction<Annotation, ConfigurationSection, String, ?>> readingMethods = new HashMap<>();
-
-    static
-    {
-        //reading
-        readingMethods.put(
-                IntegerModuleData.class, (ann, yaml, key)
-                        -> yaml.getInt(key)
-        );
-        readingMethods.put(
-                BooleanModuleData.class, (ann, yaml, key)
-                        -> yaml.getBoolean(key)
-        );
-        readingMethods.put(
-                FloatModuleData.class, (ann, yaml, key)
-                        -> (float)yaml.getDouble(key)
-        );
-        readingMethods.put(
-                DoubleModuleData.class, (ann, yaml, key)
-                        -> yaml.getDouble(key)
-        );
-        readingMethods.put(
-                StringModuleData.class, (ann, yaml, key)
-                        -> yaml.getString(key)
-        );
-        readingMethods.put(
-                UUIDModuleData.class, (ann, yaml, key)
-                        -> UUID.fromString(yaml.getString(key))
-        );
-
-        //writing
-        writingMethods.put(
-                IntegerModuleData.class, (ann, yaml, key, value)
-                        -> yaml.set(key, value)
-        );
-        writingMethods.put(
-                BooleanModuleData.class, (ann, yaml, key, value)
-                        -> yaml.set(key, value)
-        );
-        writingMethods.put(
-                FloatModuleData.class, (ann, yaml, key, value)
-                        -> yaml.set(key, value)
-        );
-        writingMethods.put(
-                DoubleModuleData.class, (ann, yaml, key, value)
-                        -> yaml.set(key, value)
-        );
-        writingMethods.put(
-                StringModuleData.class, (ann, yaml, key, value)
-                        -> yaml.set(key, value)
-        );
-        writingMethods.put(
-                UUIDModuleData.class, (ann, yaml, key, value)
-                        -> yaml.set(key, value.toString())
-        );
-
-
-
-        //region HashSet
-
-        //----------= HashSet =-----------------------------------------------------------------------------
-
-
-        readingMethods.put(
-                HashSetModuleData.class, (ann, yaml, key)
-                        -> {
-                    HashSet<Object> set = new HashSet<>();
-                    ConfigurationSection section = yaml.getConfigurationSection(key);
-                    if(section == null)
-                        return set;
-
-                    section.getValues(false).forEach((id, value) -> {
-                        set.add(
-                                readingMethods.get(
-                                        ((HashSetModuleData)ann).value()
-                                ).apply(null, section, id)
-                        );
-                    });
-                    return set;
-                }
-        );
-
-        writingMethods.put(
-                HashSetModuleData.class, (ann, yaml, key, value)
-                        -> {
-                    ConfigurationSection section = yaml.createSection(key);
-                    int i = 0;
-
-                    for (Object entry : (HashSet<Object>) value)
-                    {
-                        writingMethods.get(((HashSetModuleData)ann).value()).accept(
-                                null, section, Integer.toString(i), entry
-                        );
-                        i++;
-                    }
-                }
-        );
-
-
-        //endregion
-
-
-        //region UUID HashMap
-
-        //----------= UUID HashMap =-----------------------------------------------------------------------------
-
-
-        readingMethods.put(
-                UUIDHashMapModuleData.class, (ann, yaml, key)
-                        -> {
-                    HashMap<UUID, Object> map = new HashMap<>();
-                    ConfigurationSection section = yaml.getConfigurationSection(key);
-                    if(section == null)
-                        return map;
-
-                    section.getValues(false).forEach((id, value) -> {
-                        map.put(
-                                UUID.fromString(id),
-                                readingMethods.get(
-                                        ((UUIDHashMapModuleData)ann).value()
-                                ).apply(null, section, id)
-                        );
-                    });
-                    return map;
-                }
-        );
-
-        writingMethods.put(
-                UUIDHashMapModuleData.class, (ann, yaml, key, value)
-                        -> {
-                    ConfigurationSection mapSection = yaml.createSection(key);
-                    ((HashMap<UUID, Object>) value).forEach((id, obj) -> {
-                        writingMethods.get(((UUIDHashMapModuleData)ann).value()).accept(null, mapSection, id.toString(), obj);
-                    });
-                }
-        );
-
-
-        //endregion
-
-
-        //region String HashMap
-
-        //----------= String HashMap =-----------------------------------------------------------------------------
-
-
-        readingMethods.put(
-                StringHashMapModuleData.class, (ann, yaml, key)
-                        -> {
-                    HashMap<String, Object> map = new HashMap<>();
-                    ConfigurationSection section = yaml.getConfigurationSection(key);
-                    if(section == null)
-                        return map;
-
-                    section.getValues(false).forEach((id, value) -> {
-                        map.put(
-                                id,
-                                readingMethods.get(
-                                        ((UUIDHashMapModuleData)ann).value()
-                                ).apply(null, section, id)
-                        );
-                    });
-                    return map;
-                }
-        );
-
-
-        writingMethods.put(
-                StringHashMapModuleData.class, (ann, yaml, key, value)
-                        -> {
-                    ConfigurationSection mapSection = yaml.createSection(key);
-                    ((HashMap<String, Object>) value).forEach((id, obj) -> {
-                        writingMethods.get(((StringHashMapModuleData)ann).value()).accept(null, mapSection, id, obj);
-                    });
-                }
-        );
-
-
-        //endregion
-    }
-
-    //endregion
 
 
     //region Event Info
@@ -857,7 +782,7 @@ public abstract class EventBase {
      * @return Provides information section on what players are actively playing in the event
      */
     @EventInfoProvider(name = "Registered", separate = true)
-    public Map<String, Object> registeredInfo()
+    public final Map<String, Object> registeredInfo()
     {
         HashMap<String, Object> sectionMap = new HashMap<>();
         StringBuilder output = new StringBuilder();
@@ -882,7 +807,7 @@ public abstract class EventBase {
      * @return Provides information section on what players are actively playing in the event
      */
     @EventInfoProvider(name = "Playing", separate = true)
-    public Map<String, Object> playingInfo()
+    public final Map<String, Object> playingInfo()
     {
         HashMap<String, Object> sectionMap = new HashMap<>();
         StringBuilder output = new StringBuilder();
@@ -907,7 +832,7 @@ public abstract class EventBase {
      * @return Provides information on the state of the event
      */
     @EventInfoProvider(name = "Basic", separate = false)
-    public Map<String, Object> basicInfo()
+    public final Map<String, Object> basicInfo()
     {
         HashMap<String, Object> sectionMap = new HashMap<>();
 

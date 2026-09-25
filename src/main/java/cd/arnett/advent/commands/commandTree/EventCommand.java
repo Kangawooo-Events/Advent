@@ -1,6 +1,6 @@
 package cd.arnett.advent.commands.commandTree;
 
-import cd.arnett.advent.EventManager;
+import cd.arnett.advent.EventTracker;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.mojang.brigadier.context.CommandContext;
@@ -23,7 +23,7 @@ public class EventCommand extends Cattamand {
                 new Cattarameter(
                         "event",
                         ArgumentTypes.namespacedKey(),
-                        (ctx) -> EventManager.getEventNames()
+                        (ctx) -> EventTracker.getEventNames()
                 )
         );
     }
@@ -47,7 +47,7 @@ public class EventCommand extends Cattamand {
     public List<? extends Cattamand> getChildren() {
         ArrayList<Cattamand> subCommands = new ArrayList<>();
 
-        EventManager.getEvents().forEach(eventBase -> {
+        EventTracker.getEvents().forEach(eventBase -> {
             subCommands.addAll(eventBase.getCommandControls());
         });
 

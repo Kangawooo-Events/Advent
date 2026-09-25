@@ -5,7 +5,7 @@ import java.lang.annotation.RetentionPolicy;
 
 /**
  * Marks PUBLIC methods as one which will be called when a player joins the event (registration is seperate)<br>
- * Method MUST have ONE Player Parameter for the player joining
+ * Method MUST have ONE JoinEventData Parameter for the join data
  */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface OnJoinEvent { }

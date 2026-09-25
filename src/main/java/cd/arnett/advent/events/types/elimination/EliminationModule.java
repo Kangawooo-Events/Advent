@@ -6,7 +6,6 @@ import cd.arnett.advent.events.annotations.EventInfoProvider;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.OnRegistrationAdd;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
-import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDModuleData;
 import cd.arnett.advent.events.types.elimination.controls.EliminateCommand;
 import cd.arnett.advent.events.types.elimination.controls.InstateCommand;
@@ -23,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public interface EliminationModule extends WinnableModule {
 
+    String yamlFileName = "Elimination";
     String remainingListName = "remaining";
     String eliminatedListName = "eliminated";
 
@@ -36,8 +36,8 @@ public interface EliminationModule extends WinnableModule {
     /**
      * Provides a list of Remaining players to moduleData
      */
-    @ModuleDataProvider(remainingListName)
-    @HashSetModuleData(UUIDModuleData.class)
+    @ModuleDataProvider(key = remainingListName, fileBasename = yamlFileName)
+    @HashSetModuleData(type = UUIDModuleData.class)
     default HashSet<UUID> remainingPlayers()
     {
         return new HashSet<>();
@@ -46,8 +46,8 @@ public interface EliminationModule extends WinnableModule {
     /**
      * Provides a list of Eliminated players to moduleData
      */
-    @ModuleDataProvider(eliminatedListName)
-    @HashSetModuleData(UUIDModuleData.class)
+    @ModuleDataProvider(key = eliminatedListName, fileBasename = yamlFileName)
+    @HashSetModuleData(type = UUIDModuleData.class)
     default HashSet<UUID> eliminatedPlayers()
     {
         return new HashSet<>();

@@ -4,16 +4,22 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
- * Marks a PUBLIC method as providing a data object to the event.<br>
- *  Method MUST have NO parameters, An accoumpaning ModuleData annotation specifying the type,
- *  and a return type the same as the specified data type using the ModuleData annotations.
- *  This data can be accessed in the Base Event's getModuleData(String name) function as a generic object.
- */
+ * Used Alongside ModuleDataProvider annotation to mark a method as providing a boolean variable
+ * for the event to store and save automatically.<br>
+ * The return of the method marked is used only for a default value and will be overwritten
+ * if a value is already saved in the yaml
+ * */
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ModuleDataProvider
-{
+public @interface ModuleDataProvider {
+
     /**
-     * @return Yaml string key to store under
+     * @return The string key this will be stored under, MUST be Yaml compatible
      */
-    String value();
+    String key();
+
+    /**
+     * @return name of the Yaml File this will be store under (will be created if not present).
+     * Do NOT include the .yaml
+     */
+    String fileBasename() default "event";
 }

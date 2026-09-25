@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface LivesModule extends EliminationModule {
 
     String livesMapName = "lives";
+    String livesFileName = "Lives";
 
     //region Automatic Data
 
@@ -22,8 +23,8 @@ public interface LivesModule extends EliminationModule {
     /**
      * Provides a list of Remaining players to moduleData
      */
-    @ModuleDataProvider(livesMapName)
-    @UUIDHashMapModuleData(IntegerModuleData.class)
+    @ModuleDataProvider(key = livesMapName, fileBasename = livesFileName)
+    @UUIDHashMapModuleData(type = IntegerModuleData.class)
     default HashMap<UUID, Integer> playerLives()
     {
         return new HashMap<>();

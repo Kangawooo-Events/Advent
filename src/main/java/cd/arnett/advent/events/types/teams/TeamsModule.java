@@ -1,5 +1,6 @@
 package cd.arnett.advent.events.types.teams;
 
+import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.OnInitialize;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDModuleData;
@@ -34,16 +35,33 @@ public interface TeamsModule extends EventType {
                     new HashSetModuleData()
                     {
                         @Override
+                        public Class<? extends Annotation> type() {
+                            return UUIDModuleData.class;
+                        }
+
+                        @Override
                         public Class<? extends Annotation> annotationType() {
                             return HashSetModuleData.class;
                         }
 
+                    },
+                    new ModuleDataProvider() {
+
                         @Override
-                        public Class<? extends Annotation> value() {
-                            return UUIDModuleData.class;
+                        public Class<? extends Annotation> annotationType() {
+                            return ModuleDataProvider.class;
+                        }
+
+                        @Override
+                        public String key() {
+                            return team.name() + teamNameSuffix;
+                        }
+
+                        @Override
+                        public String fileBasename() {
+                            return "Teams";
                         }
                     },
-                    team.name() + teamNameSuffix,
                     new HashSet<UUID>()
             );
         });
@@ -57,7 +75,6 @@ public interface TeamsModule extends EventType {
     {
         return getModuleData(teamName + teamNameSuffix);
     }
-
 
     //endregion
 

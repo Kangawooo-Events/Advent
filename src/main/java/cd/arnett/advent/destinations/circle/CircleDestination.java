@@ -79,10 +79,10 @@ public class CircleDestination extends TeleportDestination {
             r = radius;
         }
 
-        double randX = r * Math.cos(a) + radius + location.getX();
-        double randZ = r * Math.sin(a) + radius + location.getZ();
+        double randX = r * Math.cos(a);
+        double randZ = r * Math.sin(a);
 
-        return new Location(location.getWorld(), randX, location.y(), randZ);
+        return new Location(location.getWorld(), randX + location.getX(), location.y(), randZ  + location.getZ());
     }
 
     @Override

@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT")
-    compileOnly("com.github.Kangawooo-Events:Caddamands:v3.A.9")
+    compileOnly("com.github.Kangawooo-Events:Caddamands:v3.A.10")
 }
 
 java {

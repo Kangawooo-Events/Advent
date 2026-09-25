@@ -1,7 +1,9 @@
 package cd.arnett.advent.commands.commandTree.destinations;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.TeleportationManager;
+import cd.arnett.advent.Advent;
+import cd.arnett.advent.EventTracker;
+import cd.arnett.advent.DestinationManager;
+import cd.arnett.advent.worlds.HubWorld;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -9,7 +11,9 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
+import org.bukkit.NamespacedKey;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -25,13 +29,17 @@ public class CreateDestinationCommand extends Cattamand {
                 new Cattarameter(
                         "event",
                         ArgumentTypes.namespacedKey(),
-                        (ctx) -> EventManager.getEventNames()
+                        (ctx) -> {
+                            var keys = new ArrayList<>(EventTracker.getEventNames());
+                            keys.add(HubWorld.destinationKey);
+                            return keys;
+                        }
                 ),
                 new Cattarameter(
                         "tag",
                         StringArgumentType.string(),
                         Map.of(
-                                "SPAWN", "Tag for identification, can be any word",
+                                "JOIN", "Tag for identification, can be any word",
                                 "POSTEVENT", "Tag for identification, can be any word"
                         )
                 ),
@@ -64,6 +72,6 @@ public class CreateDestinationCommand extends Cattamand {
 
     @Override
     public List<? extends Cattamand> getChildren() {
-        return TeleportationManager.getDestinationCreationCommands();
+        return DestinationManager.getDestinationCreationCommands();
     }
 }

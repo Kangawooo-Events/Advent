@@ -2,9 +2,11 @@ package cd.arnett.advent;
 
 import cd.arnett.advent.events.PlayerEventStatus;
 import cd.arnett.advent.events.EventBase;
+import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 
 import java.io.File;
@@ -18,7 +20,7 @@ import java.util.stream.Collectors;
 /**
  * Handles everything to do with the state of events themselves
  */
-public class EventManager {
+public class EventTracker {
 
     /**
      * Tracks the active events, the players in them and their status. here for faster lookup of player -> events
@@ -35,15 +37,43 @@ public class EventManager {
 
 
     /**
+     * @param playerId Player to get events of
+     * @return List of events the player registered to
+     */
+    public static List<EventBase> getRegisteredEvent(UUID playerId)
+    {
+        ArrayList<EventBase> events = new ArrayList<>();
+
+        for(var entry : registeredEvents.values())
+        {
+            if(entry.isRegistered(playerId)) events.add(entry);
+        }
+
+        return events;
+    }
+
+    /**
      * Provides a copy of the event column for this player, a hashmap of the events and the player's status in them
      * @param playerId Player to get events of
-     * @return copy of Map of events the player is related to
+     * @return Set of events the player is related to
      */
-    public static Set<EventBase> getPlayerEvents(UUID playerId)
+    public static EventBase getPlayingEvent(UUID playerId)
     {
-        return registeredEvents.values().stream().filter(
-                eventBase -> eventBase.isRegistered(playerId)
-        ).collect(Collectors.toSet());
+        for(var entry : registeredEvents.values())
+        {
+            if(entry.isRegistered(playerId, PlayerEventStatus.PLAYING)) return entry;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param player Player to get events of
+     * @return Whether player is playing in an event currently
+     */
+    public static boolean isPlayingEvent(Player player)
+    {
+        return getPlayingEvent(player.getUniqueId()) != null;
     }
 
 
@@ -98,23 +128,6 @@ public class EventManager {
         return List.copyOf(registeredEvents.values());
     }
 
-    //region Overloads
-
-    //----------= Overloads =-----------------------------------------------------------------------------
-
-    /**
-     * Provides a list of the events a player is related to by the provided status filter
-     * @param playerId Player to get events of
-     * @return Copy of Map of events the player is related to
-     */
-    public Set<EventBase> getPlayerEvents(UUID playerId, PlayerEventStatus... filter)
-    {
-        return registeredEvents.values().stream().filter(
-                eventBase -> eventBase.isRegistered(playerId, filter)
-        ).collect(Collectors.toSet());
-    }
-
-    //endregion
 
     //endregion
 
@@ -169,6 +182,7 @@ public class EventManager {
     //endregion
 
 
+
     //region Player Registration
 
     /*=================================================================================================
@@ -192,7 +206,7 @@ public class EventManager {
      */
     public static void revokeRegistrations(UUID id)
     {
-        getPlayerEvents(id).forEach(event -> event.revokeRegistration(id));
+        getRegisteredEvent(id).forEach(event -> event.revokeRegistration(id));
     }
 
     /**
@@ -246,6 +260,7 @@ public class EventManager {
     //endregion
 
     //endregion
+
 
 
     //region Controlling Events
@@ -442,7 +457,6 @@ public class EventManager {
     }
 
     //endregion
-
 
 
 }

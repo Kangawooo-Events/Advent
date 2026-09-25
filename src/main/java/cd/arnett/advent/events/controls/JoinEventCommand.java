@@ -1,5 +1,6 @@
 package cd.arnett.advent.events.controls;
 
+import cd.arnett.advent.EventTracker;
 import cd.arnett.advent.commands.EventBaseCattamand;
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -27,6 +28,16 @@ public class JoinEventCommand extends EventBaseCattamand {
             return 0;
         }
 
+        if(EventTracker.isPlayingEvent(sender))
+        {
+            ArgumentHelper.sendSenderMiniMessage(
+                    context,
+                    "<color:#ff597a> You are already <bold>Playing</bold> in an Event"
+                            + event.eventKey().toString()
+            );
+            return 0;
+        }
+
         event.join(sender);
         ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98><bold>Joined</bold> Event " + event.eventKey().toString());
 
@@ -35,12 +46,12 @@ public class JoinEventCommand extends EventBaseCattamand {
 
     public int groupExecute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
-        EventBase base = getEvent(context);
-        targets.forEach(base::join);
+        EventBase event = getEvent(context);
+        targets.forEach(event::join);
         ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98>"
                 + (getEvent(context).requiresRegistration() ? "Registered Player(s)" : "Player(s)")
                 +" <bold>Joined</bold> Event "
-                + base.eventKey().toString());
+                + event.eventKey().toString());
 
 
         return 0;

@@ -1,7 +1,8 @@
 package cd.arnett.advent.commands.commandTree.destinations;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.TeleportationManager;
+import cd.arnett.advent.EventTracker;
+import cd.arnett.advent.DestinationManager;
+import cd.arnett.advent.worlds.HubWorld;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
@@ -13,6 +14,7 @@ import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class TeleportDestinationCommand extends Cattamand {
@@ -22,11 +24,13 @@ public class TeleportDestinationCommand extends Cattamand {
         String tag = context.getArgument("tag", String.class);
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
 
-        boolean success = TeleportationManager.teleportToDestination(eventId, tag, targets);
+        int destinationCount = DestinationManager.teleportToDestination(eventId, tag, targets);
 
-        if(success)
+        if(destinationCount > 0)
         {
-            ArgumentHelper.sendSenderMiniMessage(context, "<green> Found Destinations!");
+            ArgumentHelper.sendSenderMiniMessage(
+                    context, "<green> Found " + destinationCount + " Destinations!"
+            );
         }
         else
         {
@@ -42,7 +46,11 @@ public class TeleportDestinationCommand extends Cattamand {
                 new Cattarameter(
                         "event",
                         ArgumentTypes.namespacedKey(),
-                        (ctx) -> EventManager.getEventNames()
+                        (ctx) -> {
+                            var keys = new ArrayList<>(EventTracker.getEventNames());
+                            keys.add(HubWorld.destinationKey);
+                            return keys;
+                        }
                 ),
                 new Cattarameter(
                         "tag",
@@ -51,14 +59,14 @@ public class TeleportDestinationCommand extends Cattamand {
                         {
                             NamespacedKey eventId = ctx.getLastChild().getArgument("event", NamespacedKey.class);
 
-                            var destinations = TeleportationManager.getDestinations(eventId);
+                            var destinations = DestinationManager.getDestinations(eventId);
 
                             return destinations.keySet();
                         },
                         (ctx) -> {
                             NamespacedKey eventId = ctx.getArgument("event", NamespacedKey.class);
                             String tag = ctx.getArgument("tag", String.class);
-                            TeleportationManager.teleportToDestination(eventId, tag, ArgumentHelper.getPlayerSender(ctx));
+                            DestinationManager.teleportToDestination(eventId, tag, ArgumentHelper.getPlayerSender(ctx));
                             return 0;
                         }
                 ),

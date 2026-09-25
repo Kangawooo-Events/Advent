@@ -1,7 +1,8 @@
 package cd.arnett.advent.commands.commandTree.destinations;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.TeleportationManager;
+import cd.arnett.advent.EventTracker;
+import cd.arnett.advent.DestinationManager;
+import cd.arnett.advent.worlds.HubWorld;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
@@ -14,6 +15,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class RemoveDestinationCommand extends Cattamand {
@@ -24,7 +26,7 @@ public class RemoveDestinationCommand extends Cattamand {
         Player sender = ArgumentHelper.getPlayerSender(context);
 
         sender.sendMessage(MiniMessage.miniMessage().deserialize(
-                "<red><bold>Deleted </bold>" + TeleportationManager.removeDestinations(sender.getLocation(), eventId, tag)
+                "<red><bold>Deleted </bold>" + DestinationManager.removeDestinations(sender.getLocation(), eventId, tag)
         ));
 
         return 0;
@@ -36,7 +38,11 @@ public class RemoveDestinationCommand extends Cattamand {
                 new Cattarameter(
                         "event",
                         ArgumentTypes.namespacedKey(),
-                        (ctx) -> EventManager.getEventNames()
+                        (ctx) -> {
+                            var keys = new ArrayList<>(EventTracker.getEventNames());
+                            keys.add(HubWorld.destinationKey);
+                            return keys;
+                        }
                 ),
                 new Cattarameter(
                         "tag",
@@ -45,7 +51,7 @@ public class RemoveDestinationCommand extends Cattamand {
                         {
                             NamespacedKey eventId = ctx.getLastChild().getArgument("event", NamespacedKey.class);
 
-                            var destinations = TeleportationManager.getDestinations(eventId);
+                            var destinations = DestinationManager.getDestinations(eventId);
 
                             return destinations.keySet();
                         }

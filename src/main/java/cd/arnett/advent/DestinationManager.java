@@ -1,5 +1,6 @@
 package cd.arnett.advent;
 
+import cd.arnett.advent.destinations.DestinationTeleportTask;
 import cd.arnett.advent.destinations.TeleportDestination;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.google.common.collect.HashBasedTable;
@@ -8,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -17,18 +19,18 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
  * Manages everything to do with the teleporting players to/from events
  */
-public class TeleportationManager {
+public class DestinationManager {
 
     /**
      * Map of all the teleport destinations for each event
      */
     static HashBasedTable<NamespacedKey, String, ArrayList<TeleportDestination>> eventDestinations = HashBasedTable.create();
+    static HashMap<UUID, TeleportDestination> idKeyedDestination = new HashMap<>();
 
     /**
      * Map of all the registered destination types by their identifier
@@ -57,6 +59,7 @@ public class TeleportationManager {
                 destination.getEventId(),
                 (k -> new ArrayList<>())
         ).add(destination);
+        idKeyedDestination.put(destination.getId(), destination);
     }
 
     /**
@@ -68,6 +71,21 @@ public class TeleportationManager {
         //add to list or create one if not there
         eventDestinations.row(destination.getEventId()).forEach((tag, destinations)
                 -> destinations.removeIf(dest -> dest == destination));
+        idKeyedDestination.remove(destination.getId());
+    }
+
+    /**
+     * Removes the specified destinations from the Event Destinations table
+     * @param id ID of Destination being removed
+     */
+    public static void removeDestination(UUID id)
+    {
+        var destination = idKeyedDestination.get(id);
+
+        if (destination == null)
+            return;
+
+        removeDestination(destination);
     }
 
     /**
@@ -132,6 +150,17 @@ public class TeleportationManager {
     }
 
 
+    /**
+     * Gives a map copy of Teleport destinations by both a namespaced keys and tags
+     * @param id UUID of the teleportation destination
+     * @return
+     */
+    public static TeleportDestination getDestination(UUID id)
+    {
+        return idKeyedDestination.get(id);
+    }
+
+
     //endregion
 
 
@@ -146,83 +175,14 @@ public class TeleportationManager {
      * Teleports the provided players to random destinations under the given event and tags
      * @param eventID Event destinations to search
      * @param destinationTag Tag of the destinations we want
-     * @param players players to be teleported
-     * @return True if destinations were found, Teleports *may still fail but there were targets to teleport to
+     * @param entities entities to be teleported
+     * @return Number of destinations found, Teleports *may still fail but there were targets to teleport to
      */
-    public static boolean teleportToDestination(NamespacedKey eventID, String destinationTag, Player... players)
+    public static int teleportToDestination(NamespacedKey eventID, String destinationTag, Entity... entities)
     {
-        var destinations = eventDestinations.get(eventID, destinationTag);
-
-        //did not find destinations
-        if(destinations == null)
-            return false;
-
-        AtomicInteger counter = new AtomicInteger(0);
-
-        //sort destinations into capped and non capped
-        HashMap<TeleportDestination, Integer> modifiableDestinationCapacities = new HashMap<>();
-        ArrayList<TeleportDestination> uncappedDestinations = new ArrayList<>();
-
-        //calculate total available slots
-        int total = 0;
-        for(var destination : destinations)
-        {
-            int capacity = destination.getCapacity();
-
-            if(capacity <= 0)
-            {
-                uncappedDestinations.add(destination);
-                continue;
-            }
-
-            modifiableDestinationCapacities.put(destination, capacity);
-            total += capacity;
-        }
-
-
-        AtomicInteger rollSize = new AtomicInteger(Math.max(total, players.length));
-        //batch out teleports
-        Bukkit.getScheduler().runTaskTimerAsynchronously(Advent.singleton, (task) -> {
-            try {
-
-                var rand = new Random();
-
-                for (int i = 0; i < 10 && (counter.get() < players.length); i++) {
-                    Player player = players[counter.get()];
-                    int roll = rand.nextInt(rollSize.get());
-                    counter.getAndIncrement();
-
-                    for(var entry : modifiableDestinationCapacities.entrySet()) {
-                        roll -= entry.getValue();
-                        if(roll <= 0)
-                        {
-                            //teleport and decrement capacity
-                            player.teleportAsync(entry.getKey().getSafeDestination());
-                            modifiableDestinationCapacities.put(entry.getKey(), entry.getValue() - 1);
-                            break;
-                        }
-                    }
-
-                    //roll greater than capacity
-                    player.teleportAsync(
-                            uncappedDestinations.get(
-                                    rand.nextInt(uncappedDestinations.size())
-                            ).getSafeDestination()
-                    );
-                    rollSize.getAndDecrement();
-                }
-
-                if(counter.get() >= players.length)
-                    task.cancel();
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-        }, 0, 1);
-
-        //found destinations
-        return true;
+        var task = new DestinationTeleportTask(eventID, destinationTag);
+        task.teleportAsync(entities);
+        return task.getDestinationCount();
     }
 
 
@@ -235,12 +195,12 @@ public class TeleportationManager {
      * Teleports the provided players to random destinations under the given event and tags
      * @param eventID Event destinations to search
      * @param destinationTag Tag of the destinations we want
-     * @param players players to be teleported
-     * @return True if destinations were found, Teleports *may still fail but there were targets to teleport to
+     * @param entities Entities to be teleported
+     * @return Number of destinations found, Teleports *may still fail but there were targets to teleport to
      */
-    public static boolean teleportToDestination(NamespacedKey eventID, String destinationTag, List<Player> players)
+    public static int teleportToDestination(NamespacedKey eventID, String destinationTag, List<? extends Entity> entities)
     {
-        return teleportToDestination(eventID, destinationTag, players.toArray(Player[]::new));
+        return teleportToDestination(eventID, destinationTag, entities.toArray(Entity[]::new));
     }
 
 

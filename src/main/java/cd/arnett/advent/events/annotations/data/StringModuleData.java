@@ -6,7 +6,8 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Used Alongside ModuleDataProvider annotation to mark a method as providing an String variable
  * for the event to store and save automatically.<br>
- * The return of the method marked is NOT USED, this is purely for declaring automatically saved data.
+ * The return of the method marked is used only for a default value and will be overwritten
+ * if a value is already saved in the yaml
  * */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface StringModuleData {

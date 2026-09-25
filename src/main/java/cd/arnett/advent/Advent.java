@@ -1,17 +1,16 @@
 package cd.arnett.advent;
 
 import cd.arnett.advent.commands.commandTree.EventCommand;
+import cd.arnett.advent.commands.commandTree.HubCommand;
 import cd.arnett.advent.commands.commandTree.destinations.CreateDestinationCommand;
 import cd.arnett.advent.commands.commandTree.destinations.DestinationViewCommand;
 import cd.arnett.advent.commands.commandTree.destinations.RemoveDestinationCommand;
 import cd.arnett.advent.commands.commandTree.destinations.TeleportDestinationCommand;
-import cd.arnett.advent.destinations.box.command.CreateBoxDestinationCommand;
-import cd.arnett.advent.destinations.circle.command.CreateCircleDestinationCommand;
-import cd.arnett.advent.destinations.spot.command.CreateSpotDestinationCommand;
 import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.advent.destinations.circle.CircleDestination;
 import cd.arnett.advent.destinations.spot.SpotDestination;
 import cd.arnett.advent.test.EliminationEvent;
+import cd.arnett.advent.test.EliminationRelocationEvent;
 import cd.arnett.advent.test.TestEvent;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
@@ -51,15 +50,18 @@ public final class Advent extends JavaPlugin {
                 new TeleportDestinationCommand()
         )).setAliases(List.of("dest", "eventdestination")).registerAsRoot(this);
 
-        EventManager.registerEvent(new TestEvent());
-        EventManager.registerEvent(new EliminationEvent());
+        new HubCommand().registerAsRoot(this);
+
+        EventTracker.registerEvent(new TestEvent());
+        EventTracker.registerEvent(new EliminationEvent());
+        EventTracker.registerEvent(new EliminationRelocationEvent());
 
         try {
-            TeleportationManager.registerType(BoxDestination.class);
-            TeleportationManager.registerType(CircleDestination.class);
-            TeleportationManager.registerType(SpotDestination.class);
-            TeleportationManager.readData();
-            TeleportationManager.startDisplayTask();
+            DestinationManager.registerType(BoxDestination.class);
+            DestinationManager.registerType(CircleDestination.class);
+            DestinationManager.registerType(SpotDestination.class);
+            DestinationManager.readData();
+            DestinationManager.startDisplayTask();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -69,8 +71,8 @@ public final class Advent extends JavaPlugin {
     public void onDisable() {
         // Plugin shutdown logic
         try {
-            TeleportationManager.writeDataNow();
-            EventManager.saveDataNow();
+            DestinationManager.writeDataNow();
+            EventTracker.saveDataNow();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -1,7 +1,6 @@
 package cd.arnett.advent.destinations.box.command;
 
-import cd.arnett.advent.EventManager;
-import cd.arnett.advent.TeleportationManager;
+import cd.arnett.advent.DestinationManager;
 import cd.arnett.advent.destinations.TeleportDestination;
 import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -9,7 +8,6 @@ import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -47,7 +45,7 @@ public class CreateBoxDestinationCommand extends Cattamand {
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        TeleportationManager.addDestination(createDestination(context));
+        DestinationManager.addDestination(createDestination(context));
         return 0;
     }
 
@@ -98,7 +96,7 @@ public class CreateBoxDestinationCommand extends Cattamand {
                         ArgumentTypes.namedColor(),
                         null,
                         (ctx) -> {
-                            TeleportationManager.addDestination(createWithColorCheck(ctx));
+                            DestinationManager.addDestination(createWithColorCheck(ctx));
                             return 0;
                         }
                 ),
@@ -107,7 +105,7 @@ public class CreateBoxDestinationCommand extends Cattamand {
                         IntegerArgumentType.integer(),
                         null,
                         (ctx) -> {
-                            TeleportationManager.addDestination(createWithCapacityCheck(ctx));
+                            DestinationManager.addDestination(createWithCapacityCheck(ctx));
                             return 0;
                         }
                 )
