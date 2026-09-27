@@ -2,7 +2,6 @@ package cd.arnett.advent.commands.commandTree.destinations;
 
 import cd.arnett.advent.EventTracker;
 import cd.arnett.advent.DestinationManager;
-import cd.arnett.advent.worlds.HubWorld;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
@@ -15,7 +14,6 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class RemoveDestinationCommand extends Cattamand {
@@ -38,11 +36,7 @@ public class RemoveDestinationCommand extends Cattamand {
                 new Cattarameter(
                         "event",
                         ArgumentTypes.namespacedKey(),
-                        (ctx) -> {
-                            var keys = new ArrayList<>(EventTracker.getEventNames());
-                            keys.add(HubWorld.destinationKey);
-                            return keys;
-                        }
+                        ctx -> EventTracker.getEventNames()
                 ),
                 new Cattarameter(
                         "tag",

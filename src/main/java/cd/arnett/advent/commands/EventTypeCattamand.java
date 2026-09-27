@@ -2,7 +2,7 @@ package cd.arnett.advent.commands;
 
 import cd.arnett.advent.EventTracker;
 import cd.arnett.advent.events.EventBase;
-import cd.arnett.advent.events.types.EventType;
+import cd.arnett.advent.events.modules.EventType;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.mojang.brigadier.context.CommandContext;

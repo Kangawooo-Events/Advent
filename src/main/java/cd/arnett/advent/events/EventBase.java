@@ -96,11 +96,6 @@ public abstract class EventBase {
                     }
                 }
             }
-
-
-            if(method.isAnnotationPresent(ModuleDataProvider.class))
-            {
-            }
         }
     }
 
@@ -164,6 +159,17 @@ public abstract class EventBase {
      */
     public abstract boolean requiresRegistration();
 
+    /**
+     * @return Whether players should automatically be set to join this event when they
+     * join the server if they are registered and this event is running
+     */
+    public abstract boolean autoJoin();
+
+    /**
+     * @return Should this event automatically start when it is registered with the EventTracker
+     */
+    public abstract boolean autoOpen();
+
 
     //endregion
 
@@ -183,46 +189,56 @@ public abstract class EventBase {
     /**
      * Call to start event
      */
-    public final void startEvent()
+    public final void openEvent()
     {
         if(isActive)
             return;
 
         isActive = true;
-        invokeCallbacks(OnEventStart.class);
+        invokeCallbacks(OnEventOpen.class);
     }
 
     /**
      * Call to stop event
      */
-    public final void stopEvent()
+    public final void closeEvent()
     {
         if(!isActive)
             return;
 
+        //make all players leave
+        getPlayingPlayers().forEach(this::leave);
+
         isActive = false;
-        invokeCallbacks(OnEventStop.class);
+        invokeCallbacks(OnEventClose.class);
     }
 
     /**
      * Makes a player join the event if registered (Absent -> Playing)
      * @param player Player who joined
+     * @return Whether the player was allowed to join
      */
-    public final void join(Player player)
+    public final boolean join(Player player)
     {
         var id = player.getUniqueId();
+        var lastEvent = EventTracker.getPlayingEvent(player.getUniqueId());
 
-        //leave if we require registration and player is not registered, or they are already playing another event
-        if((requiresRegistration() && !registeredPlayers.containsKey(id))
-                || EventTracker.isPlayingEvent(player))
+        //check if player can join first
+        if(!canJoin(player))
         {
-            return;
+            return false;
+        }
+
+        //leave the last event they were in
+        if(lastEvent != null)
+        {
+            lastEvent.leave(player);
         }
 
         //set player to playing
         registeredPlayers.put(id, PlayerEventStatus.PLAYING);
         invokeCallbacks(OnJoinEvent.class, null, player);
-
+        return true;
     }
 
     /**
@@ -257,11 +273,9 @@ public abstract class EventBase {
     public final List<Cattamand> getCommandControls() {
 
         commandControls.add(new JoinEventCommand());
-        commandControls.add(new JoinEventCommand());
-        commandControls.add(new LeaveEventCommand());
         commandControls.add(new SaveEventCommand());
-        commandControls.add(new StopEventCommand());
-        commandControls.add(new StartEventCommand());
+        commandControls.add(new CloseEventCommand());
+        commandControls.add(new OpenEventCommand());
         commandControls.add(new EventInfoCommand());
         commandControls.add(new LiteralCattamand("registrations", List.of(
                 new AddRegistrationCommand(),
@@ -290,14 +304,14 @@ public abstract class EventBase {
     /**
      * Called when the event is started
      */
-    @OnEventStart
-    public abstract void onEventStart();
+    @OnEventOpen
+    public abstract void onEventOpen();
 
     /**
      * Called when the event is stopped
      */
-    @OnEventStop
-    public abstract void onEventStop();
+    @OnEventClose
+    public abstract void onEventClose();
 
     /**
      * Called when a player joins an event
@@ -429,6 +443,13 @@ public abstract class EventBase {
         return registeredPlayers.containsKey(id);
     }
 
+
+    public boolean canJoin(Player player)
+    {
+        //leave if we require registration and player is not registered, or they are already playing another event
+        return player.isOp() || (isActive && ((!requiresRegistration() || registeredPlayers.containsKey(player.getUniqueId()))));
+    }
+
     /**
      * @param id ID of player to check
      * @return Event status of the provided player
@@ -537,7 +558,11 @@ public abstract class EventBase {
     public final void revokeRegistration(PlayerProfile player)
     {
         if(registeredPlayers.get(player.getId()) == PlayerEventStatus.PLAYING)
-            leave(Bukkit.getPlayer(player.getId()));
+        {
+            Player playerObj = Bukkit.getPlayer(player.getId());
+            leave(playerObj);
+            EventTracker.getHubEvent().join(playerObj);
+        }
 
         registeredPlayers.remove(player.getId());
         invokeCallbacks(OnRegistrationRemove.class, null, player);
@@ -752,6 +777,9 @@ public abstract class EventBase {
             });
         });
     }
+
+    //endregion
+
 
 
     //region Event Info

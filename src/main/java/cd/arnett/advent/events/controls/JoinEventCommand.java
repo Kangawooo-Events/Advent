@@ -18,21 +18,11 @@ public class JoinEventCommand extends EventBaseCattamand {
     public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
         Player sender = ArgumentHelper.getPlayerSender(context);
 
-        if(event.requiresRegistration() && !event.isRegistered(sender))
+        if(!event.canJoin(sender))
         {
             ArgumentHelper.sendSenderMiniMessage(
                     context,
-                    "<color:#ff597a> You are not <bold>Registered</bold> for this Event"
-                            + event.eventKey().toString()
-            );
-            return 0;
-        }
-
-        if(EventTracker.isPlayingEvent(sender))
-        {
-            ArgumentHelper.sendSenderMiniMessage(
-                    context,
-                    "<color:#ff597a> You are already <bold>Playing</bold> in an Event"
+                    "<color:#ff597a> You Cannot Join This Event"
                             + event.eventKey().toString()
             );
             return 0;
@@ -46,12 +36,30 @@ public class JoinEventCommand extends EventBaseCattamand {
 
     public int groupExecute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
+
+        boolean allJoin = true;
+
         EventBase event = getEvent(context);
+
+        for (Player target : targets) {
+            if(!event.join(target))
+                allJoin = false;
+        }
+
         targets.forEach(event::join);
-        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98>"
-                + (getEvent(context).requiresRegistration() ? "Registered Player(s)" : "Player(s)")
-                +" <bold>Joined</bold> Event "
-                + event.eventKey().toString());
+
+        if(allJoin)
+        {
+            ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98>"
+                    + "Player(s) <bold>Joined</bold> Event "
+                    + event.eventKey().toString());
+        }
+        else
+        {
+            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>"
+                    + "Not all Player(s) were able to Join Event "
+                    + event.eventKey().toString());
+        }
 
 
         return 0;

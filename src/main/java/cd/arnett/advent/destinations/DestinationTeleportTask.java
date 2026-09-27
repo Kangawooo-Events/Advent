@@ -42,25 +42,40 @@ public class DestinationTeleportTask {
         var capacitySection = config.getConfigurationSection("capacity-map");
 
         AtomicInteger total = new AtomicInteger(0);
-        capacitySection.getValues(false).forEach((key, value) -> {
-            UUID id = UUID.fromString(key);
-            int cap = (int)value;
+        var capacities = capacitySection.getValues(false);
 
-            var destination = DestinationManager.getDestination(id);
-            if(destination == null)
-                return;
+        DestinationManager.getDestinations(eventId, tag).forEach((destination) -> {
 
+            UUID id = destination.getId();
 
-            if(cap < 0)
+            if(capacities.containsKey(id.toString()))
             {
-                uncappedDestinations.add(destination);
-                return;
+                int cap = (int)capacities.get(id);
+
+                if(destination.capacity < 0)
+                {
+                    uncappedDestinations.add(destination);
+                }
+                else
+                {
+                    total.addAndGet(cap);
+                    modifiableDestinationCapacities.put(destination, cap);
+                }
             }
             else
             {
-                total.addAndGet(cap);
-                modifiableDestinationCapacities.put(destination, cap);
+                int cap = destination.getCapacity();
+                if(cap < 0)
+                {
+                    uncappedDestinations.add(destination);
+                }
+                else
+                {
+                    total.addAndGet(cap);
+                    modifiableDestinationCapacities.put(destination, cap);
+                }
             }
+
         });
     }
 
@@ -85,13 +100,14 @@ public class DestinationTeleportTask {
      */
     public void reloadDestinations()
     {
+        modifiableDestinationCapacities.clear();
+        uncappedDestinations.clear();
+
         var destinations = DestinationManager.getDestinations(eventId, tag);
 
         //did not find destinations
         if(destinations == null)
             return;
-
-        AtomicInteger counter = new AtomicInteger(0);
 
         //calculate total available slots
         for(var destination : destinations)
@@ -131,7 +147,7 @@ public class DestinationTeleportTask {
 
                     for(var entry : modifiableDestinationCapacities.entrySet()) {
                         roll -= entry.getValue();
-                        if(roll <= 0)
+                        if(roll < 0)
                         {
                             //teleport and decrement capacity
                             entity.teleportAsync(entry.getKey().getSafeDestination());
@@ -139,6 +155,12 @@ public class DestinationTeleportTask {
                             totalCapacity--;
                             break;
                         }
+                    }
+
+                    //if we found a destination then don't go to uncapped
+                    if(roll < 0)
+                    {
+                        return;
                     }
 
                     //roll greater than capacity
@@ -152,6 +174,13 @@ public class DestinationTeleportTask {
                     }
                     else
                     {
+
+                        if(modifiableDestinationCapacities.isEmpty())
+                        {
+                            Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Like at all :(");
+                            return;
+                        }
+
                         Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Sending to capped destination");
                         entity.teleportAsync(
                                 modifiableDestinationCapacities.keySet().iterator().next().getDestination()

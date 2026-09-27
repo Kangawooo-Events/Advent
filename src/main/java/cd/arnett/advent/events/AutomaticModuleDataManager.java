@@ -2,6 +2,7 @@ package cd.arnett.advent.events;
 
 import cd.arnett.advent.destinations.DestinationTeleportTask;
 import cd.arnett.advent.events.annotations.data.*;
+import cd.arnett.advent.events.modules.playerState.PlayerState;
 import org.apache.commons.lang3.function.TriFunction;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
@@ -90,6 +91,10 @@ public class AutomaticModuleDataManager {
                 DestinationTeleportTaskModuleData.class, (ann, yaml, key)
                         -> new DestinationTeleportTask(yaml.getConfigurationSection(key))
         );
+        readingMethods.put(
+                PlayerStateModuleData.class, (ann, yaml, key)
+                        -> new PlayerState(yaml.getConfigurationSection(key))
+        );
 
 
 
@@ -137,6 +142,13 @@ public class AutomaticModuleDataManager {
                 DestinationTeleportTaskModuleData.class, (ann, yaml, key, value)
                         -> {
                     var task = (DestinationTeleportTask)value;
+                    yaml.set(key, task.writeToYaml());
+                }
+        );
+        writingMethods.put(
+                PlayerStateModuleData.class, (ann, yaml, key, value)
+                        -> {
+                    var task = (PlayerState)value;
                     yaml.set(key, task.writeToYaml());
                 }
         );

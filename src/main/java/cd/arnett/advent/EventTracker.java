@@ -2,11 +2,9 @@ package cd.arnett.advent;
 
 import cd.arnett.advent.events.PlayerEventStatus;
 import cd.arnett.advent.events.EventBase;
-import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 
 import java.io.File;
@@ -15,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * Handles everything to do with the state of events themselves
@@ -27,6 +24,8 @@ public class EventTracker {
      * and events -> players without having to have it in separate locations
      */
     static HashMap<NamespacedKey, EventBase> registeredEvents = new HashMap<>();
+    static EventBase hubEvent = null;
+    static EventBase devEvent = null;
 
 
     //region Get Data
@@ -40,7 +39,7 @@ public class EventTracker {
      * @param playerId Player to get events of
      * @return List of events the player registered to
      */
-    public static List<EventBase> getRegisteredEvent(UUID playerId)
+    public static List<EventBase> getRegisteredEvents(UUID playerId)
     {
         ArrayList<EventBase> events = new ArrayList<>();
 
@@ -65,15 +64,6 @@ public class EventTracker {
         }
 
         return null;
-    }
-
-    /**
-     * @param player Player to get events of
-     * @return Whether player is playing in an event currently
-     */
-    public static boolean isPlayingEvent(Player player)
-    {
-        return getPlayingEvent(player.getUniqueId()) != null;
     }
 
 
@@ -159,14 +149,9 @@ public class EventTracker {
                 .resolve(eventKey.getKey())
                 .resolve("event.yaml");
 
-        //no data to read
-        if(!Files.exists(eventDataPath))
-        {
-            return;
-        }
 
         //read existing data
-        else
+        if(Files.exists(eventDataPath))
         {
             event.readFromYaml(YamlConfiguration.loadConfiguration(eventDataPath.toFile()));
         }
@@ -175,6 +160,12 @@ public class EventTracker {
         for (Listener listener : listeners)
         {
             Advent.registerListener(listener);
+        }
+
+        //start event if set to autostart
+        if(event.autoOpen())
+        {
+            event.openEvent();
         }
     }
 
@@ -206,7 +197,7 @@ public class EventTracker {
      */
     public static void revokeRegistrations(UUID id)
     {
-        getRegisteredEvent(id).forEach(event -> event.revokeRegistration(id));
+        getRegisteredEvents(id).forEach(event -> event.revokeRegistration(id));
     }
 
     /**
@@ -263,27 +254,46 @@ public class EventTracker {
 
 
 
-    //region Controlling Events
+    //region Hub
 
     /*=================================================================================================
-                        -  Controlling Events  -
+                        -  Hub  -
     =================================================================================================*/
 
-    /**
-     * Calls Start Event for the given event key
-     */
-    public static void startEvent(NamespacedKey eventKey)
+
+    public static EventBase getHubEvent()
     {
-        getEvent(eventKey).startEvent();
+        return hubEvent;
     }
 
-    /**
-     * Calls Stop Event for the given event key
-     */
-    public static void stopEvent(NamespacedKey eventKey)
+    public static void registerHubEvent(EventBase event)
     {
-        getEvent(eventKey).stopEvent();
+        registerEvent(event);
+        hubEvent = event;
     }
+
+
+    //endregion
+
+
+    //region Dev
+
+    /*=================================================================================================
+                        -  Dev  -
+    =================================================================================================*/
+
+
+    public static EventBase getDevEvent()
+    {
+        return devEvent;
+    }
+
+    public static void registerDevEvent(EventBase event)
+    {
+        registerEvent(event);
+        devEvent = event;
+    }
+
 
     //endregion
 

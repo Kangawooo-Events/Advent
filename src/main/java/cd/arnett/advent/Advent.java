@@ -1,5 +1,6 @@
 package cd.arnett.advent;
 
+import cd.arnett.advent.commands.commandTree.DevCommand;
 import cd.arnett.advent.commands.commandTree.EventCommand;
 import cd.arnett.advent.commands.commandTree.HubCommand;
 import cd.arnett.advent.commands.commandTree.destinations.CreateDestinationCommand;
@@ -9,9 +10,13 @@ import cd.arnett.advent.commands.commandTree.destinations.TeleportDestinationCom
 import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.advent.destinations.circle.CircleDestination;
 import cd.arnett.advent.destinations.spot.SpotDestination;
-import cd.arnett.advent.test.EliminationEvent;
-import cd.arnett.advent.test.EliminationRelocationEvent;
-import cd.arnett.advent.test.TestEvent;
+import cd.arnett.advent.events.JoinQuitListener;
+import cd.arnett.advent.events.provided.EliminationRelocationStateEvent;
+import cd.arnett.advent.events.provided.dev.AdventDevEvent;
+import cd.arnett.advent.events.provided.hub.AdventHubEvent;
+import cd.arnett.advent.events.provided.EliminationEvent;
+import cd.arnett.advent.events.provided.EliminationRelocationEvent;
+import cd.arnett.advent.events.provided.TestEvent;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.event.Listener;
@@ -29,7 +34,7 @@ public final class Advent extends JavaPlugin {
     @Override
     public void onEnable() {
         // Plugin startup logic
-
+        saveDefaultConfig();
         singleton = this;
         logger = getLogger();
 
@@ -43,19 +48,20 @@ public final class Advent extends JavaPlugin {
                 }).priority(69420)
         );
 
+        // register Listeners
+        getServer().getPluginManager().registerEvents(new JoinQuitListener(), this);
+
+        //register commands
         new LiteralCattamand("destination", List.of(
                 new CreateDestinationCommand(),
                 new RemoveDestinationCommand(),
                 new DestinationViewCommand(),
                 new TeleportDestinationCommand()
         )).setAliases(List.of("dest", "eventdestination")).registerAsRoot(this);
-
         new HubCommand().registerAsRoot(this);
+        new DevCommand().registerAsRoot(this);
 
-        EventTracker.registerEvent(new TestEvent());
-        EventTracker.registerEvent(new EliminationEvent());
-        EventTracker.registerEvent(new EliminationRelocationEvent());
-
+        //register and read destinations
         try {
             DestinationManager.registerType(BoxDestination.class);
             DestinationManager.registerType(CircleDestination.class);
@@ -65,10 +71,19 @@ public final class Advent extends JavaPlugin {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+        //register and read events
+        EventTracker.registerHubEvent(new AdventHubEvent());
+        EventTracker.registerDevEvent(new AdventDevEvent());
+        EventTracker.registerEvent(new TestEvent());
+        EventTracker.registerEvent(new EliminationEvent());
+        EventTracker.registerEvent(new EliminationRelocationEvent());
+        EventTracker.registerEvent(new EliminationRelocationStateEvent());
     }
 
     @Override
     public void onDisable() {
+
         // Plugin shutdown logic
         try {
             DestinationManager.writeDataNow();

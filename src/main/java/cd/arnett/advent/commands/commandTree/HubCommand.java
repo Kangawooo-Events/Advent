@@ -1,7 +1,7 @@
 package cd.arnett.advent.commands.commandTree;
 
 import cd.arnett.advent.EventTracker;
-import cd.arnett.advent.worlds.HubWorld;
+import cd.arnett.advent.events.EventBase;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
@@ -17,13 +17,15 @@ public class HubCommand extends Cattamand {
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         var sender = ArgumentHelper.getPlayerSender(context);
-        HubWorld.sendToHub(sender);
+        EventBase hub = EventTracker.getHubEvent();
+        hub.join(sender);
         return 0;
     }
 
     public int groupExecute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         List<Player> players = ArgumentHelper.getPlayersFromArgs("targets", context);
-        players.forEach(HubWorld::sendToHub);
+        EventBase hub = EventTracker.getHubEvent();
+        players.forEach(hub::join);
         return 0;
     }
 
