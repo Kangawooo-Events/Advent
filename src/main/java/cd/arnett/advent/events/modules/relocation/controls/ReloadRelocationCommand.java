@@ -1,6 +1,6 @@
 package cd.arnett.advent.events.modules.relocation.controls;
 
-import cd.arnett.advent.commands.EventTypeCattamand;
+import cd.arnett.advent.commands.EventModuleCattamand;
 import cd.arnett.advent.events.modules.relocation.RelocationModule;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import com.mojang.brigadier.context.CommandContext;
@@ -9,7 +9,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 
 import java.util.List;
 
-public class ReloadRelocationCommand extends EventTypeCattamand<RelocationModule> {
+public class ReloadRelocationCommand extends EventModuleCattamand<RelocationModule> {
     @Override
     public int execute(CommandContext<CommandSourceStack> context, RelocationModule eventModule) throws CommandSyntaxException {
         eventModule.getJoinTeleportTask().reloadDestinations();

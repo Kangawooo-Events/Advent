@@ -1,8 +1,6 @@
 package cd.arnett.advent;
 
-import cd.arnett.advent.commands.commandTree.DevCommand;
-import cd.arnett.advent.commands.commandTree.EventCommand;
-import cd.arnett.advent.commands.commandTree.HubCommand;
+import cd.arnett.advent.commands.commandTree.*;
 import cd.arnett.advent.commands.commandTree.destinations.CreateDestinationCommand;
 import cd.arnett.advent.commands.commandTree.destinations.DestinationViewCommand;
 import cd.arnett.advent.commands.commandTree.destinations.RemoveDestinationCommand;
@@ -10,7 +8,9 @@ import cd.arnett.advent.commands.commandTree.destinations.TeleportDestinationCom
 import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.advent.destinations.circle.CircleDestination;
 import cd.arnett.advent.destinations.spot.SpotDestination;
-import cd.arnett.advent.events.JoinQuitListener;
+import cd.arnett.advent.events.provided.build.AdventBuildEvent;
+import cd.arnett.advent.listeners.EventFreezeListener;
+import cd.arnett.advent.listeners.JoinQuitListener;
 import cd.arnett.advent.events.provided.EliminationRelocationStateEvent;
 import cd.arnett.advent.events.provided.dev.AdventDevEvent;
 import cd.arnett.advent.events.provided.hub.AdventHubEvent;
@@ -50,6 +50,7 @@ public final class Advent extends JavaPlugin {
 
         // register Listeners
         getServer().getPluginManager().registerEvents(new JoinQuitListener(), this);
+        getServer().getPluginManager().registerEvents(new EventFreezeListener(), this);
 
         //register commands
         new LiteralCattamand("destination", List.of(
@@ -60,6 +61,8 @@ public final class Advent extends JavaPlugin {
         )).setAliases(List.of("dest", "eventdestination")).registerAsRoot(this);
         new HubCommand().registerAsRoot(this);
         new DevCommand().registerAsRoot(this);
+        new FreezePlayerCommand().registerAsRoot(this);
+        new UnfreezePlayerCommand().registerAsRoot(this);
 
         //register and read destinations
         try {
@@ -75,6 +78,7 @@ public final class Advent extends JavaPlugin {
         //register and read events
         EventTracker.registerHubEvent(new AdventHubEvent());
         EventTracker.registerDevEvent(new AdventDevEvent());
+        EventTracker.registerBuildEvent(new AdventBuildEvent());
         EventTracker.registerEvent(new TestEvent());
         EventTracker.registerEvent(new EliminationEvent());
         EventTracker.registerEvent(new EliminationRelocationEvent());

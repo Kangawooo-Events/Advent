@@ -1,6 +1,6 @@
 package cd.arnett.advent.events.modules.winnable.controls;
 
-import cd.arnett.advent.commands.EventTypeCattamand;
+import cd.arnett.advent.commands.EventModuleCattamand;
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.modules.winnable.WinnableModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -16,7 +16,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public class GrantWinCommand extends EventTypeCattamand<WinnableModule> {
+public class GrantWinCommand extends EventModuleCattamand<WinnableModule> {
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context, WinnableModule eventModule) throws CommandSyntaxException {

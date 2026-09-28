@@ -31,6 +31,11 @@ public class AdventDevEvent extends EventBase implements RelocationModule, Separ
     }
 
     @Override
+    public boolean preventLeavingWhilePlaying() {
+        return false;
+    }
+
+    @Override
     public void onEventOpen() {
 
     }
@@ -43,7 +48,7 @@ public class AdventDevEvent extends EventBase implements RelocationModule, Separ
     @Override
     public void onJoinEvent(Player player) {
         player.sendMessage(MiniMessage.miniMessage().deserialize(
-                "<bold><color:#ff597a>You Joined The Dev"
+                "<bold><color:#ff597a>You Joined Dev"
         ));
     }
 

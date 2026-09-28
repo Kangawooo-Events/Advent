@@ -34,6 +34,11 @@ public class EliminationRelocationEvent extends EventBase implements Elimination
     }
 
     @Override
+    public boolean preventLeavingWhilePlaying() {
+        return false;
+    }
+
+    @Override
     public void onEventOpen() {
         getOnlinePlayers().forEach(player -> {
             player.sendMessage(MiniMessage.miniMessage().deserialize("<green><bold>Event Started"));

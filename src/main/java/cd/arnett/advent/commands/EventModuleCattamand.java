@@ -14,7 +14,7 @@ import org.bukkit.NamespacedKey;
 /**
  * Extension of Cattamand which provides helpful method(s) for making event module control commands
  */
-public abstract class EventTypeCattamand<T extends EventType> extends Cattamand {
+public abstract class EventModuleCattamand<T extends EventType> extends Cattamand {
 
     public EventBase getEvent(CommandContext<CommandSourceStack> context)
     {

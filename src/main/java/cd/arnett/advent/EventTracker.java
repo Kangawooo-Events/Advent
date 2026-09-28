@@ -24,14 +24,20 @@ public class EventTracker {
      * and events -> players without having to have it in separate locations
      */
     static HashMap<NamespacedKey, EventBase> registeredEvents = new HashMap<>();
+
+    /**
+     * Tracks what events players are playing in
+     */
+    static HashMap<UUID, EventBase> playingEvents = new HashMap<>();
     static EventBase hubEvent = null;
     static EventBase devEvent = null;
+    static EventBase buildEvent = null;
 
 
-    //region Get Data
+    //region Get/Set Data
 
     /*=================================================================================================
-                        -  Get Data  -
+                        -  Get/Set Data  -
     =================================================================================================*/
 
 
@@ -58,12 +64,18 @@ public class EventTracker {
      */
     public static EventBase getPlayingEvent(UUID playerId)
     {
-        for(var entry : registeredEvents.values())
-        {
-            if(entry.isRegistered(playerId, PlayerEventStatus.PLAYING)) return entry;
-        }
+        return playingEvents.get(playerId);
+    }
 
-        return null;
+    /**
+     * Sets what event a player is playing in, PURELY FOR TRACKING PURPOSES.
+     * Calling this function does not actually make them join the event
+     * @param playerId player to set as playing the event
+     * @param base event that player is playing in
+     */
+    public static void setPlayingEvent(UUID playerId, EventBase base)
+    {
+        playingEvents.put(playerId, base);
     }
 
 
@@ -292,6 +304,28 @@ public class EventTracker {
     {
         registerEvent(event);
         devEvent = event;
+    }
+
+
+    //endregion
+
+
+    //region Build
+
+    /*=================================================================================================
+                        -  Build  -
+    =================================================================================================*/
+
+
+    public static EventBase getBuildEvent()
+    {
+        return buildEvent;
+    }
+
+    public static void registerBuildEvent(EventBase event)
+    {
+        registerEvent(event);
+        buildEvent = event;
     }
 
 

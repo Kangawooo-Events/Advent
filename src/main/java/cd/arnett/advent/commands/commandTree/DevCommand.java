@@ -50,7 +50,7 @@ public class DevCommand extends Cattamand {
 
     @Override
     public String getPermission() {
-        return "none";
+        return "";
     }
 
     @Override

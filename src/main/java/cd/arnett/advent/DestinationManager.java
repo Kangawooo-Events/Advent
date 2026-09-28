@@ -135,7 +135,8 @@ public class DestinationManager {
      */
     public static List<TeleportDestination> getDestinations(NamespacedKey eventId, String tag)
     {
-        return eventDestinations.get(eventId, tag);
+        var list = eventDestinations.get(eventId, tag);
+        return list == null ? List.of() : list;
     }
 
 

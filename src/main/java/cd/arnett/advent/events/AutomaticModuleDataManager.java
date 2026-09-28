@@ -93,7 +93,9 @@ public class AutomaticModuleDataManager {
         );
         readingMethods.put(
                 PlayerStateModuleData.class, (ann, yaml, key)
-                        -> new PlayerState(yaml.getConfigurationSection(key))
+                        -> {
+                    return new PlayerState(yaml.getConfigurationSection(key));
+                }
         );
 
 

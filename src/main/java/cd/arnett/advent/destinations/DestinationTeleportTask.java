@@ -8,10 +8,8 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -23,9 +21,9 @@ public class DestinationTeleportTask {
     NamespacedKey eventId;
     String tag;
 
-    HashMap<TeleportDestination, Integer> modifiableDestinationCapacities = new HashMap<>();
+    ConcurrentHashMap<TeleportDestination, Integer> modifiableDestinationCapacities = new ConcurrentHashMap<>();
     ArrayList<TeleportDestination> uncappedDestinations = new ArrayList<>();
-    int totalCapacity = 0;
+    AtomicInteger totalCapacity = new AtomicInteger(0);
 
 
     public DestinationTeleportTask(NamespacedKey eventId, String tag)
@@ -50,7 +48,7 @@ public class DestinationTeleportTask {
 
             if(capacities.containsKey(id.toString()))
             {
-                int cap = (int)capacities.get(id);
+                int cap = (int)capacities.getOrDefault(id, -1);
 
                 if(destination.capacity < 0)
                 {
@@ -121,7 +119,7 @@ public class DestinationTeleportTask {
             }
 
             modifiableDestinationCapacities.put(destination, capacity);
-            totalCapacity += capacity;
+            totalCapacity.addAndGet(capacity);
         }
     }
 
@@ -132,7 +130,7 @@ public class DestinationTeleportTask {
     public void teleportAsync(Entity... entities)
     {
         AtomicInteger counter = new AtomicInteger(0);
-        AtomicInteger rollSize = new AtomicInteger(Math.max(totalCapacity, entities.length));
+        AtomicInteger rollSize = new AtomicInteger(Math.max(totalCapacity.get(), entities.length));
         //batch out teleports
         Bukkit.getScheduler().runTaskTimerAsynchronously(Advent.singleton, (task) -> {
             try {
@@ -143,22 +141,22 @@ public class DestinationTeleportTask {
                     Entity entity = entities[counter.get()];
                     counter.getAndIncrement();
 
-                    int roll = rand.nextInt(rollSize.get());
+                    int roll = rand.nextInt(rollSize.get()) + 1;
 
                     for(var entry : modifiableDestinationCapacities.entrySet()) {
                         roll -= entry.getValue();
-                        if(roll < 0)
+                        if(roll <= 0)
                         {
                             //teleport and decrement capacity
                             entity.teleportAsync(entry.getKey().getSafeDestination());
                             modifiableDestinationCapacities.put(entry.getKey(), entry.getValue() - 1);
-                            totalCapacity--;
+                            totalCapacity.decrementAndGet();
                             break;
                         }
                     }
 
                     //if we found a destination then don't go to uncapped
-                    if(roll < 0)
+                    if(roll <= 0)
                     {
                         return;
                     }
@@ -198,6 +196,64 @@ public class DestinationTeleportTask {
             }
         }, 0, 1);
 
+    }
+
+    /**
+     * Teleports players asynchronously
+     * @param entity Entity to teleport
+     */
+    public void teleportAsync(Entity entity)
+    {
+        AtomicInteger counter = new AtomicInteger(0);
+        AtomicInteger rollSize = new AtomicInteger(totalCapacity.get());
+        var rand = new Random();
+        counter.getAndIncrement();
+
+        int roll = rand.nextInt(rollSize.get()) + 1;
+
+
+        for(var entry : modifiableDestinationCapacities.entrySet()) {
+            roll -= entry.getValue();
+            if(roll <= 0)
+            {
+                //teleport and decrement capacity
+                entity.teleportAsync(entry.getKey().getSafeDestination());
+                modifiableDestinationCapacities.put(entry.getKey(), entry.getValue() - 1);
+                totalCapacity.decrementAndGet();
+                break;
+            }
+        }
+
+        //if we found a destination then don't go to uncapped
+        if(roll <= 0)
+        {
+            return;
+        }
+
+        //roll greater than capacity
+        if(!uncappedDestinations.isEmpty())
+        {
+            entity.teleportAsync(
+                    uncappedDestinations.get(
+                            rand.nextInt(uncappedDestinations.size())
+                    ).getSafeDestination()
+            );
+        }
+        else
+        {
+
+            if(modifiableDestinationCapacities.isEmpty())
+            {
+                Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Like at all :(");
+                return;
+            }
+
+            Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Sending to capped destination");
+            entity.teleportAsync(
+                    modifiableDestinationCapacities.keySet().iterator().next().getDestination()
+            );
+        }
+        rollSize.getAndDecrement();
     }
 
 
@@ -242,6 +298,6 @@ public class DestinationTeleportTask {
     }
 
     public int getTotalCapacity() {
-        return totalCapacity;
+        return totalCapacity.get();
     }
 }

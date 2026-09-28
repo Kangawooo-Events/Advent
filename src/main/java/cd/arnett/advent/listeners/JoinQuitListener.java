@@ -1,6 +1,7 @@
-package cd.arnett.advent.events;
+package cd.arnett.advent.listeners;
 
 import cd.arnett.advent.EventTracker;
+import cd.arnett.advent.events.EventBase;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

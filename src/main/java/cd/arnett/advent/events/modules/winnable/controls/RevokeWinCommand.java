@@ -1,6 +1,6 @@
 package cd.arnett.advent.events.modules.winnable.controls;
 
-import cd.arnett.advent.commands.EventTypeCattamand;
+import cd.arnett.advent.commands.EventModuleCattamand;
 import cd.arnett.advent.events.modules.winnable.WinnableModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public class RevokeWinCommand extends EventTypeCattamand<WinnableModule> {
+public class RevokeWinCommand extends EventModuleCattamand<WinnableModule> {
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context, WinnableModule eventModule) throws CommandSyntaxException {

@@ -1,6 +1,6 @@
 package cd.arnett.advent.events.modules.elimination.controls;
 
-import cd.arnett.advent.commands.EventTypeCattamand;
+import cd.arnett.advent.commands.EventModuleCattamand;
 import cd.arnett.advent.events.modules.elimination.EliminationModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
@@ -15,7 +15,7 @@ import org.bukkit.Bukkit;
 import java.util.Collection;
 import java.util.List;
 
-public class InstateCommand extends EventTypeCattamand<EliminationModule> {
+public class InstateCommand extends EventModuleCattamand<EliminationModule> {
 
 
     @Override

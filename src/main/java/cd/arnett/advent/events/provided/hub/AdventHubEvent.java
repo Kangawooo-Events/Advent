@@ -32,6 +32,11 @@ public class AdventHubEvent extends EventBase implements RelocationModule, Separ
     }
 
     @Override
+    public boolean preventLeavingWhilePlaying() {
+        return false;
+    }
+
+    @Override
     public void onEventOpen() {
 
     }

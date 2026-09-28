@@ -1,19 +1,18 @@
 package cd.arnett.advent.events.modules.playerState;
 
-import cd.arnett.advent.events.annotations.EventInfoProvider;
-import cd.arnett.advent.events.annotations.ModuleDataProvider;
-import cd.arnett.advent.events.annotations.OnJoinEvent;
-import cd.arnett.advent.events.annotations.OnLeaveEvent;
-import cd.arnett.advent.events.annotations.data.ItemStackArrayModuleData;
+import cd.arnett.advent.events.PlayerEventStatus;
+import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.data.PlayerStateModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
 import cd.arnett.advent.events.modules.EventType;
-import org.bukkit.NamespacedKey;
+import cd.arnett.advent.events.modules.playerState.controls.ClearStatesCommand;
+import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
+import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 public interface SeparateStateModule extends EventType {
@@ -37,6 +36,16 @@ public interface SeparateStateModule extends EventType {
     default HashMap<UUID, PlayerState> getPlayerStates()
     {
         return getModuleData(playerStatesKey);
+    }
+
+    default void clearPlayerState(UUID id)
+    {
+        if(getEvent().isRegistered(id, PlayerEventStatus.PLAYING))
+        {
+            getEvent().leave(Bukkit.getPlayer(id));
+        }
+
+        getPlayerStates().remove(id);
     }
 
 
@@ -102,15 +111,29 @@ public interface SeparateStateModule extends EventType {
         map.put("Default absorption", defaultState.getAbsorption());
         map.put("Default fireTicks", defaultState.getFireTicks());
         map.put("Default freezeTicks", defaultState.getFreezeTicks());
-        map.put("Default flySpeed", defaultState.getFlySpeed());
-        map.put("Default walkSpeed", defaultState.getWalkSpeed());
-        map.put("Default fallDist", defaultState.getFallDist());
         map.put("Default saturationRegen", defaultState.getSaturationRegen());
         map.put("Default starvationRate", defaultState.getStarvationRate());
         map.put("Default level", defaultState.getLevel());
 
 
         return map;
+    }
+
+
+    //endregion
+
+
+    //region Command Control
+
+    /*=================================================================================================
+                        -  Command Control  -
+    =================================================================================================*/
+
+
+    @EventControl
+    default Cattamand getRemoveStateControl()
+    {
+        return new LiteralCattamand("states", List.of(new ClearStatesCommand())) ;
     }
 
 

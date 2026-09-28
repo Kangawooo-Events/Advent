@@ -22,7 +22,7 @@ import java.util.*;
 
 public class PlayerState {
 
-    ItemStack[] content;
+    ItemStack[] content = new ItemStack[0];
     HashMap<Attribute, Pair<Double, Collection<AttributeModifier>>> attributes = new HashMap<>();
     double health;
     double absorption;
@@ -35,11 +35,8 @@ public class PlayerState {
     int maxAir;
     int fireTicks;
     int freezeTicks;
-    double flySpeed;
-    double walkSpeed;
-    double fallDist;
     Location respawn;
-    Collection<PotionEffect> effects;
+    Collection<PotionEffect> effects = List.of();
 
     public PlayerState()
     {
@@ -54,9 +51,6 @@ public class PlayerState {
         air = maxAir;
         fireTicks = 0;
         freezeTicks = 0;
-        flySpeed = .1f;
-        walkSpeed = .2f;
-        fallDist = 0;
         respawn = null;
         effects = List.of();
         content = new ItemStack[0];
@@ -84,12 +78,9 @@ public class PlayerState {
         absorption = player.getAbsorptionAmount();
         fireTicks = player.getFireTicks();
         freezeTicks = player.getFreezeTicks();
-        flySpeed = player.getFlySpeed();
         level = player.getLevel();
-        walkSpeed = player.getWalkSpeed();
         content = player.getInventory().getContents();
         respawn = player.getRespawnLocation();
-        fallDist = player.getFallDistance();
     }
 
     public PlayerState(ConfigurationSection config)
@@ -105,9 +96,6 @@ public class PlayerState {
         maxAir = config.getInt("maxAir");
         fireTicks = config.getInt("fireTicks");
         freezeTicks = config.getInt("freezeTicks");
-        flySpeed = config.getDouble("flySpeed");
-        walkSpeed = config.getDouble("walkSpeed");
-        fallDist = config.getDouble("fallDist");
         respawn = config.getLocation("respawn");
         effects = (List<PotionEffect>)config.getList("effects");
         content = config.getList("content").toArray(ItemStack[]::new);
@@ -121,8 +109,8 @@ public class PlayerState {
                 attributes.put(
                         attribute,
                         Pair.of(
-                                section.getDouble(name + ".base-value"),
-                                (List<AttributeModifier>)section.getList(name + ".modifier-value")
+                                section.getDouble(".base-value"),
+                                (List<AttributeModifier>)section.getList("modifier-value")
                         )
                 );
             }
@@ -131,23 +119,35 @@ public class PlayerState {
 
     public void applyToPlayer(Player applicant)
     {
-        //reset attributes
-        for (Attribute value : Attribute.values()) {
-            var instance = applicant.getAttribute(value);
-            if(instance == null) continue;
-            instance.setBaseValue(instance.getDefaultValue());
+        //add attributes
+        for (Attribute attribute : Attribute.values()) {
+            var saved = attributes.get(attribute);
+
+            AttributeInstance instance = applicant.getAttribute(attribute);
+
+            if(instance == null)
+                continue;
+
+            if(saved == null)
+            {
+                switch (attribute)
+                {
+                    case Attribute.GENERIC_MOVEMENT_SPEED -> applicant.setWalkSpeed(0.2f);
+                    case Attribute.GENERIC_FLYING_SPEED -> instance.setBaseValue(0.1f);
+                    default -> instance.setBaseValue(instance.getDefaultValue());
+                }
+                continue;
+            }
+
+            instance.setBaseValue(saved.getLeft());
             instance.getModifiers().forEach(instance::removeModifier);
+            var list = saved.getRight();
+            if(list != null)
+                list.forEach(instance::addModifier);
         }
 
         //reset potion effects
         applicant.getActivePotionEffects().forEach(effect -> applicant.removePotionEffect(effect.getType()));
-
-        //add attributes
-        attributes.forEach((attribute, saved) -> {
-            AttributeInstance instance = applicant.getAttribute(attribute);
-            instance.setBaseValue(saved.getLeft());
-            saved.getRight().forEach(instance::addModifier);
-        });
 
         //add potion effects
         effects.forEach(applicant::addPotionEffect);
@@ -163,9 +163,6 @@ public class PlayerState {
         applicant.setRemainingAir(air);
         applicant.setFireTicks(fireTicks);
         applicant.setFreezeTicks(freezeTicks);
-        applicant.setFlySpeed((float)flySpeed);
-        applicant.setWalkSpeed((float)walkSpeed);
-        applicant.setFallDistance((float)fallDist);
         applicant.getInventory().setContents(content);
 
         if(respawn == null)
@@ -202,9 +199,6 @@ public class PlayerState {
         config.set("absorption", absorption);
         config.set("fireTicks", fireTicks);
         config.set("freezeTicks", freezeTicks);
-        config.set("flySpeed", flySpeed);
-        config.set("walkSpeed", walkSpeed);
-        config.set("fallDist", fallDist);
         config.set("saturationRegen", saturationRegen);
         config.set("starvationRate", starvationRate);
         config.set("level", level);
@@ -345,33 +339,6 @@ public class PlayerState {
 
     public PlayerState setFreezeTicks(int freezeTicks) {
         this.freezeTicks = freezeTicks;
-        return this;
-    }
-
-    public double getFlySpeed() {
-        return flySpeed;
-    }
-
-    public PlayerState setFlySpeed(double flySpeed) {
-        this.flySpeed = flySpeed;
-        return this;
-    }
-
-    public double getWalkSpeed() {
-        return walkSpeed;
-    }
-
-    public PlayerState setWalkSpeed(double walkSpeed) {
-        this.walkSpeed = walkSpeed;
-        return this;
-    }
-
-    public double getFallDist() {
-        return fallDist;
-    }
-
-    public PlayerState setFallDist(double fallDist) {
-        this.fallDist = fallDist;
         return this;
     }
 

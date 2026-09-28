@@ -28,6 +28,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
@@ -47,6 +48,7 @@ public abstract class EventBase {
     HashMap<String, Object> moduleData = new HashMap<>();
 
     boolean isActive = false;
+    boolean isFrozen = false;
 
     public EventBase() {
         //fill callbacks
@@ -170,6 +172,12 @@ public abstract class EventBase {
      */
     public abstract boolean autoOpen();
 
+    /**
+     * @return Should players be able to return to hub when playing this event, players may abuse /hub
+     * if some plugins don't account for that in their tracking
+     */
+    public abstract boolean preventLeavingWhilePlaying();
+
 
     //endregion
 
@@ -237,6 +245,7 @@ public abstract class EventBase {
 
         //set player to playing
         registeredPlayers.put(id, PlayerEventStatus.PLAYING);
+        EventTracker.setPlayingEvent(id, this);
         invokeCallbacks(OnJoinEvent.class, null, player);
         return true;
     }
@@ -249,13 +258,40 @@ public abstract class EventBase {
     {
         var id = player.getUniqueId();
 
-        if(registeredPlayers.getOrDefault(id, PlayerEventStatus.ABSENT) == PlayerEventStatus.PLAYING)
+        if(isPlaying(id))
         {
             //remove this from their event stack
             registeredPlayers.put(id, PlayerEventStatus.ABSENT);
             invokeCallbacks(OnLeaveEvent.class, null, player);
         }
     }
+
+    /**
+     * Call to freeze the event
+     */
+    public final void freeze()
+    {
+        isFrozen = true;
+        invokeCallbacks(OnFreezeEvent.class);
+    }
+
+    /**
+     * Call to unfreeze the event
+     */
+    public final void unfreeze()
+    {
+        isFrozen = false;
+        invokeCallbacks(OnUnfreezeEvent.class);
+    }
+
+    /**
+     * @return Whether the event is currently frozen
+     */
+    public final boolean isFrozen()
+    {
+        return isFrozen;
+    }
+
 
     /**
      * Registers a cattamand as a control for this event,
@@ -277,6 +313,8 @@ public abstract class EventBase {
         commandControls.add(new CloseEventCommand());
         commandControls.add(new OpenEventCommand());
         commandControls.add(new EventInfoCommand());
+        commandControls.add(new FreezeEventCommand());
+        commandControls.add(new UnfreezeEventCommand());
         commandControls.add(new LiteralCattamand("registrations", List.of(
                 new AddRegistrationCommand(),
                 new RemoveRegistrationCommand()
@@ -327,7 +365,6 @@ public abstract class EventBase {
     @OnLeaveEvent
     public abstract void onLeaveEvent(Player player);
 
-
     //endregion
 
 
@@ -377,6 +414,7 @@ public abstract class EventBase {
         stringPlayers.forEach(player -> {
             registeredPlayers.put(UUID.fromString(player), PlayerEventStatus.ABSENT);
         });
+
         isActive = yaml.getBoolean("active");
 
         System.out.println("reading yaml for " + eventKey());
@@ -419,7 +457,7 @@ public abstract class EventBase {
     public final List<Player> getPlayingPlayers()
     {
         return registeredPlayers.entrySet().stream().filter(entry ->
-                entry.getValue() == PlayerEventStatus.PLAYING
+                isPlaying(entry.getKey())
         ).map(entry ->
                 Bukkit.getPlayer(entry.getKey())
         ).filter(Objects::nonNull).toList();
@@ -443,11 +481,44 @@ public abstract class EventBase {
         return registeredPlayers.containsKey(id);
     }
 
+    /**
+     * Is a player currently playing in this event
+     * @param id Id of Player to check
+     * @return whether they are playing
+     */
+    public final boolean isPlaying(UUID id)
+    {
+        return registeredPlayers.get(id) == PlayerEventStatus.PLAYING;
+    }
+
 
     public boolean canJoin(Player player)
     {
+        var currentEvent = EventTracker.getPlayingEvent(player.getUniqueId());
+
+        if(!(player.isOp() ||
+            (
+                    isActive &&
+                            (currentEvent == null || !currentEvent.preventLeavingWhilePlaying()) &&
+                            !getPlayingPlayers().contains(player) &&
+                            ((
+                                    !requiresRegistration() ||
+                                            registeredPlayers.containsKey(player.getUniqueId())
+                            ))
+            )))
+        {
+            return false;
+        }
+
+        AtomicBoolean allSuccess = new AtomicBoolean(true);
+
+        invokeCallbacks(CanJoinEvent.class, (result, ann) -> {
+            if(!((boolean) result))
+                allSuccess.set(false);
+        }, player);
+
         //leave if we require registration and player is not registered, or they are already playing another event
-        return player.isOp() || (isActive && ((!requiresRegistration() || registeredPlayers.containsKey(player.getUniqueId()))));
+        return allSuccess.get();
     }
 
     /**
@@ -557,7 +628,7 @@ public abstract class EventBase {
      */
     public final void revokeRegistration(PlayerProfile player)
     {
-        if(registeredPlayers.get(player.getId()) == PlayerEventStatus.PLAYING)
+        if(isPlaying(player.getId()))
         {
             Player playerObj = Bukkit.getPlayer(player.getId());
             leave(playerObj);
@@ -740,7 +811,9 @@ public abstract class EventBase {
                 .resolve(eventKey().getNamespace())
                 .resolve(eventKey().getKey());
 
+
         automaticDataKeys.forEach((annotation, keys) -> {
+            System.out.println("reading " + annotation.annotationType());
             keys.forEach(key -> {
                 var dataProvider = automaticModuleAnnotations.get(key);
                 if(dataProvider.key().equalsIgnoreCase("event"))
@@ -759,11 +832,12 @@ public abstract class EventBase {
                 }
                 else
                 {
-                    Path sectionFile = eventDirectory.resolve(dataProvider.fileBasename());
+                    Path sectionFile = eventDirectory.resolve(dataProvider.fileBasename() + ".yaml");
 
                     //no data to read
                     if(!Files.exists(sectionFile))
                     {
+                        System.out.println("NO FILE TO READ " + sectionFile.toString());
                         return;
                     }
 
