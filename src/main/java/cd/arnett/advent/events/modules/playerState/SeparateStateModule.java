@@ -18,6 +18,7 @@ import java.util.UUID;
 public interface SeparateStateModule extends EventType {
 
     String playerStatesKey = "PlayerStates";
+    String defaultPlayerStateKey = "DefaultPlayerState";
 
 
     //region ModuleData
@@ -32,6 +33,11 @@ public interface SeparateStateModule extends EventType {
     {
         return new HashMap<>();
     }
+
+
+    @ModuleDataProvider(key = defaultPlayerStateKey, fileBasename = "DefaultPlayerState")
+    @PlayerStateModuleData()
+    PlayerState defaultJoinState();
 
     default HashMap<UUID, PlayerState> getPlayerStates()
     {
@@ -51,18 +57,6 @@ public interface SeparateStateModule extends EventType {
 
     //endregion
 
-
-    //region Abstract Properties
-
-    /*=================================================================================================
-                        -  Abstract Properties  -
-    =================================================================================================*/
-
-
-    PlayerState defaultJoinState();
-
-
-    //endregion
 
 
     //region Event

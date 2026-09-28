@@ -1,6 +1,7 @@
 package cd.arnett.advent.events.modules.playerState;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -34,6 +35,7 @@ public class PlayerState {
     int air;
     int maxAir;
     int fireTicks;
+    GameMode gamemode;
     int freezeTicks;
     Location respawn;
     Collection<PotionEffect> effects = List.of();
@@ -48,6 +50,7 @@ public class PlayerState {
         exp = 0;
         level = 0;
         maxAir = 300;
+        gamemode = GameMode.SURVIVAL;
         air = maxAir;
         fireTicks = 0;
         freezeTicks = 0;
@@ -81,6 +84,7 @@ public class PlayerState {
         level = player.getLevel();
         content = player.getInventory().getContents();
         respawn = player.getRespawnLocation();
+        gamemode = player.getGameMode();
     }
 
     public PlayerState(ConfigurationSection config)
@@ -97,6 +101,7 @@ public class PlayerState {
         fireTicks = config.getInt("fireTicks");
         freezeTicks = config.getInt("freezeTicks");
         respawn = config.getLocation("respawn");
+        gamemode = GameMode.valueOf(config.getString("gamemode"));
         effects = (List<PotionEffect>)config.getList("effects");
         content = config.getList("content").toArray(ItemStack[]::new);
 
@@ -164,6 +169,7 @@ public class PlayerState {
         applicant.setFireTicks(fireTicks);
         applicant.setFreezeTicks(freezeTicks);
         applicant.getInventory().setContents(content);
+        applicant.setGameMode(gamemode);
 
         if(respawn == null)
         {
@@ -203,6 +209,7 @@ public class PlayerState {
         config.set("starvationRate", starvationRate);
         config.set("level", level);
         config.set("respawn", respawn);
+        config.set("gamemode", gamemode.name());
         config.set("effects", new ArrayList<>(effects));
         config.set("content", Arrays.asList(content));
 
@@ -360,6 +367,13 @@ public class PlayerState {
         return this;
     }
 
+    public GameMode getGamemode() {
+        return gamemode;
+    }
+
+    public void setGamemode(GameMode gamemode) {
+        this.gamemode = gamemode;
+    }
 
     //endregion
 }

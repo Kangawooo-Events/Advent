@@ -8,8 +8,8 @@ import cd.arnett.advent.commands.commandTree.destinations.TeleportDestinationCom
 import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.advent.destinations.circle.CircleDestination;
 import cd.arnett.advent.destinations.spot.SpotDestination;
-import cd.arnett.advent.events.provided.build.AdventBuildEvent;
-import cd.arnett.advent.listeners.EventFreezeListener;
+import cd.arnett.advent.events.provided.building.AdventBuildEvent;
+import cd.arnett.advent.listeners.FreezeListener;
 import cd.arnett.advent.listeners.JoinQuitListener;
 import cd.arnett.advent.events.provided.EliminationRelocationStateEvent;
 import cd.arnett.advent.events.provided.dev.AdventDevEvent;
@@ -17,6 +17,7 @@ import cd.arnett.advent.events.provided.hub.AdventHubEvent;
 import cd.arnett.advent.events.provided.EliminationEvent;
 import cd.arnett.advent.events.provided.EliminationRelocationEvent;
 import cd.arnett.advent.events.provided.TestEvent;
+import cd.arnett.advent.listeners.PvpListener;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.event.Listener;
@@ -50,7 +51,8 @@ public final class Advent extends JavaPlugin {
 
         // register Listeners
         getServer().getPluginManager().registerEvents(new JoinQuitListener(), this);
-        getServer().getPluginManager().registerEvents(new EventFreezeListener(), this);
+        getServer().getPluginManager().registerEvents(new FreezeListener(), this);
+        getServer().getPluginManager().registerEvents(new PvpListener(), this);
 
         //register commands
         new LiteralCattamand("destination", List.of(

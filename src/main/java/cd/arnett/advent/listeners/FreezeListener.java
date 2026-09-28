@@ -14,18 +14,19 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import java.util.HashSet;
 import java.util.UUID;
 
-public class EventFreezeListener implements Listener {
+public class FreezeListener implements Listener {
     public static HashSet<UUID> individuallyFrozenPlayers = new HashSet<>();
 
     @EventHandler
     public void OnMovement(PlayerMoveEvent e)
     {
-        if(e.isCancelled())
+        Player player = e.getPlayer();
+        if(e.isCancelled() || player.isOp() )
             return;
 
-        Player player = e.getPlayer();
+        EventBase currentEvent = EventTracker.getPlayingEvent(player.getUniqueId());
         if(individuallyFrozenPlayers.contains(player.getUniqueId()) ||
-                EventTracker.getPlayingEvent(player.getUniqueId()).isFrozen())
+                (currentEvent != null && currentEvent.isFrozen()))
         {
             e.setCancelled(true);
         }
@@ -34,12 +35,13 @@ public class EventFreezeListener implements Listener {
     @EventHandler
     public void OnDamage(EntityDamageEvent e)
     {
-        if(e.isCancelled() || !(e.getDamageSource().getCausingEntity() instanceof Player player))
+        if(e.isCancelled()|| !(e.getDamageSource().getCausingEntity() instanceof Player player) || player.isOp() )
         {
             return;
         }
+        EventBase currentEvent = EventTracker.getPlayingEvent(player.getUniqueId());
         if(individuallyFrozenPlayers.contains(player.getUniqueId()) ||
-                EventTracker.getPlayingEvent(player.getUniqueId()).isFrozen())
+                (currentEvent != null && currentEvent.isFrozen()))
         {
             e.setCancelled(true);
         }
@@ -48,12 +50,13 @@ public class EventFreezeListener implements Listener {
     @EventHandler
     public void OnInventoryClick(InventoryClickEvent e)
     {
-        if(e.isCancelled() || !(e.getWhoClicked() instanceof Player player))
+        if(e.isCancelled() || !(e.getWhoClicked() instanceof Player player) || player.isOp() )
         {
             return;
         }
+        EventBase currentEvent = EventTracker.getPlayingEvent(player.getUniqueId());
         if(individuallyFrozenPlayers.contains(player.getUniqueId()) ||
-                EventTracker.getPlayingEvent(player.getUniqueId()).isFrozen())
+                (currentEvent != null && currentEvent.isFrozen()))
         {
             e.setCancelled(true);
         }
@@ -62,12 +65,13 @@ public class EventFreezeListener implements Listener {
     @EventHandler
     public void OnInventoryDrag(InventoryDragEvent e)
     {
-        if(e.isCancelled() || !(e.getWhoClicked() instanceof Player player))
+        if(e.isCancelled() || !(e.getWhoClicked() instanceof Player player) || player.isOp())
         {
             return;
         }
+        EventBase currentEvent = EventTracker.getPlayingEvent(player.getUniqueId());
         if(individuallyFrozenPlayers.contains(player.getUniqueId()) ||
-                EventTracker.getPlayingEvent(player.getUniqueId()).isFrozen())
+                (currentEvent != null && currentEvent.isFrozen()))
         {
             e.setCancelled(true);
         }
@@ -76,12 +80,13 @@ public class EventFreezeListener implements Listener {
     @EventHandler
     public void OnInventoryDrag(InventoryOpenEvent e)
     {
-        if(e.isCancelled() || !(e.getPlayer() instanceof Player player))
+        if(e.isCancelled() || !(e.getPlayer() instanceof Player player)|| e.getPlayer().isOp())
         {
             return;
         }
+        EventBase currentEvent = EventTracker.getPlayingEvent(player.getUniqueId());
         if(individuallyFrozenPlayers.contains(player.getUniqueId()) ||
-                EventTracker.getPlayingEvent(player.getUniqueId()).isFrozen())
+                (currentEvent != null && currentEvent.isFrozen()))
         {
             e.setCancelled(true);
         }

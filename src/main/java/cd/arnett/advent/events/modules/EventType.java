@@ -21,14 +21,12 @@ public interface EventType {
     }
 
 
-    //region Get Data
+    //region Module Data
 
     /*=================================================================================================
-                        -  Get Data  -
+                        -  Module Data  -
     =================================================================================================*/
 
-
-    //endregion
     /**
      * Returns module data object stored under provided name
      */
@@ -36,6 +34,16 @@ public interface EventType {
     {
         return (T)getEvent().getModuleData(name);
     }
+
+    /**
+     * Returns module data object stored under provided name
+     */
+    default void setModuleData(String name, Object value)
+    {
+        getEvent().setModuleData(name, value);
+    }
+
+    //endregion
 
 
 }

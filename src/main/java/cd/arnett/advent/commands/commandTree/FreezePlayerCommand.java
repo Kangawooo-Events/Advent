@@ -1,8 +1,6 @@
 package cd.arnett.advent.commands.commandTree;
 
-import cd.arnett.advent.EventTracker;
-import cd.arnett.advent.events.EventBase;
-import cd.arnett.advent.listeners.EventFreezeListener;
+import cd.arnett.advent.listeners.FreezeListener;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
@@ -18,7 +16,7 @@ public class FreezePlayerCommand extends Cattamand {
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         List<Player> players = ArgumentHelper.getPlayersFromArgs("targets", context);
-        players.forEach(player -> EventFreezeListener.individuallyFrozenPlayers.add(player.getUniqueId()));
+        players.forEach(player -> FreezeListener.individuallyFrozenPlayers.add(player.getUniqueId()));
         return 0;
     }
 

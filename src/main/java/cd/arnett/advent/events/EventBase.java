@@ -49,6 +49,7 @@ public abstract class EventBase {
 
     boolean isActive = false;
     boolean isFrozen = false;
+    boolean allowPvp = canPvPByDefault();
 
     public EventBase() {
         //fill callbacks
@@ -173,6 +174,21 @@ public abstract class EventBase {
     public abstract boolean autoOpen();
 
     /**
+     * @return Should players be ale to pvp without you having to do /pvp enable
+     */
+    public boolean canPvPByDefault()
+    {
+        return true;
+    }
+    /**
+     * @return Should players be able to take damage while playing in this event
+     */
+    public boolean playersInvulnerable()
+    {
+        return false;
+    }
+
+    /**
      * @return Should players be able to return to hub when playing this event, players may abuse /hub
      * if some plugins don't account for that in their tracking
      */
@@ -292,6 +308,30 @@ public abstract class EventBase {
         return isFrozen;
     }
 
+    /**
+     * Call to allow pvp the event
+     */
+    public final void allowPVP()
+    {
+        allowPvp = true;
+    }
+
+    /**
+     * Call to prevent pvp in the event
+     */
+    public final void preventPVP()
+    {
+        allowPvp = false;
+    }
+
+    /**
+     * @return Whether pvp is allowed in the event
+     */
+    public final boolean isPVPAllowed()
+    {
+        return allowPvp;
+    }
+
 
     /**
      * Registers a cattamand as a control for this event,
@@ -315,6 +355,7 @@ public abstract class EventBase {
         commandControls.add(new EventInfoCommand());
         commandControls.add(new FreezeEventCommand());
         commandControls.add(new UnfreezeEventCommand());
+        commandControls.add(new SetPvPCommand());
         commandControls.add(new LiteralCattamand("registrations", List.of(
                 new AddRegistrationCommand(),
                 new RemoveRegistrationCommand()
@@ -387,6 +428,8 @@ public abstract class EventBase {
         var playerMap = getPlayerStatusMap();
         yaml.set("players", playerMap.keySet().stream().map(UUID::toString).toList());
         yaml.set("active", isActive);
+        yaml.set("frozen", isFrozen);
+        yaml.set("pvp", allowPvp);
 
         //write modules
         invokeCallbacks(WriteYaml.class, (result, annotation) -> {
@@ -416,9 +459,9 @@ public abstract class EventBase {
         });
 
         isActive = yaml.getBoolean("active");
+        isFrozen = yaml.getBoolean("frozen");
+        allowPvp = yaml.getBoolean("pvp");
 
-        System.out.println("reading yaml for " + eventKey());
-        System.out.println("read size " + callbacks.get(ReadYaml.class).size());
         //read modules
         invokeCallbacks(ReadYaml.class, null, yaml);
 
@@ -500,7 +543,7 @@ public abstract class EventBase {
             (
                     isActive &&
                             (currentEvent == null || !currentEvent.preventLeavingWhilePlaying()) &&
-                            !getPlayingPlayers().contains(player) &&
+                            !isPlaying(player.getUniqueId()) &&
                             ((
                                     !requiresRegistration() ||
                                             registeredPlayers.containsKey(player.getUniqueId())
@@ -533,12 +576,22 @@ public abstract class EventBase {
 
     /**
      * Returns module data for a provided name
-     * @param name Name of list
+     * @param name Name of key
      * @return The object stored in moduleData
      */
     public final Object getModuleData(String name)
     {
         return moduleData.get(name);
+    }
+
+    /**
+     * Overwrites module data for a provided name
+     * @param name Name of key
+     * @param value The object to be stored in moduleData
+     */
+    public final void setModuleData(String name, Object value)
+    {
+        moduleData.put(name, value);
     }
 
     /**
