@@ -371,8 +371,9 @@ public class PlayerState {
         return gamemode;
     }
 
-    public void setGamemode(GameMode gamemode) {
+    public PlayerState setGamemode(GameMode gamemode) {
         this.gamemode = gamemode;
+        return this;
     }
 
     //endregion

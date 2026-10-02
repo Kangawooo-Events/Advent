@@ -19,7 +19,7 @@ public class UnfreezeEventCommand extends EventBaseCattamand {
 
     @Override
     public String getName() {
-        return "freeze";
+        return "unfreeze";
     }
 
     @Override

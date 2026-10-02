@@ -2,6 +2,7 @@ package cd.arnett.advent;
 
 import cd.arnett.advent.events.PlayerEventStatus;
 import cd.arnett.advent.events.EventBase;
+import cd.arnett.advent.events.types.HubEventBase;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -32,6 +33,12 @@ public class EventTracker {
     static EventBase hubEvent = null;
     static EventBase devEvent = null;
     static EventBase buildEvent = null;
+
+
+    /**
+     * Tracks players in the process of joining an event
+     */
+    public static HashSet<UUID> limboPlayers = new HashSet<>();
 
 
     //region Get/Set Data
@@ -76,6 +83,16 @@ public class EventTracker {
     public static void setPlayingEvent(UUID playerId, EventBase base)
     {
         playingEvents.put(playerId, base);
+    }
+
+    /**
+     * Clears what event a player is set as playing. This is because when a player is in limbo they should
+     * not be set as playing an event
+     * @param playerId player
+     */
+    public static void clearPlayingEvent(UUID playerId)
+    {
+        playingEvents.remove(playerId);
     }
 
 
@@ -142,43 +159,43 @@ public class EventTracker {
     =================================================================================================*/
 
     /**
-     * Registers an event and loads saved yaml from it
+     * Registers an event and loads saved yaml from it. Event is then loaded later onServerLoad
      * @param event  event to register
-     * @param listeners Listeners to register along with it, DO NOT ALSO REGISTER IN ON ENABLE
      */
-    public static void registerEvent(EventBase event, Listener... listeners) {
+    public static void registerEvent(EventBase event) {
 
         NamespacedKey eventKey = event.eventKey();
         registeredEvents.put(eventKey, event);
+    }
 
-        Advent.logger.info("Reading Event Data for: " + eventKey);
+    /**
+     * Loads registered events separate from registration so other plugins have time to setup worlds and such
+     */
+    static void loadRegisteredEvents()
+    {
+        registeredEvents.forEach((eventKey, event) -> {
+            //get the path to the Menus directory
+            Path eventDataPath = Advent.singleton.getDataFolder()
+                    .toPath()
+                    .resolve("Events")
+                    .resolve(eventKey.getNamespace())
+                    .resolve(eventKey.getKey())
+                    .resolve("event.yaml");
 
-        //get the path to the Menus directory
-        Path eventDataPath = Advent.singleton.getDataFolder()
-                .toPath()
-                .resolve("Events")
-                .resolve(eventKey.getNamespace())
-                .resolve(eventKey.getKey())
-                .resolve("event.yaml");
+            //read existing data
+            if(Files.exists(eventDataPath))
+            {
+                event.readFromYaml(YamlConfiguration.loadConfiguration(eventDataPath.toFile()));
+            }
 
 
-        //read existing data
-        if(Files.exists(eventDataPath))
-        {
-            event.readFromYaml(YamlConfiguration.loadConfiguration(eventDataPath.toFile()));
-        }
+            //start event if set to autostart
+            if(event.autoOpen())
+            {
+                event.openEvent();
+            }
+        });
 
-        //register listeners;
-        for (Listener listener : listeners)
-        {
-            Advent.registerListener(listener);
-        }
-
-        //start event if set to autostart
-        if(event.autoOpen())
-        {
-            event.openEvent();
-        }
     }
 
 
@@ -278,7 +295,7 @@ public class EventTracker {
         return hubEvent;
     }
 
-    public static void registerHubEvent(EventBase event)
+    public static void registerHubEvent(HubEventBase event)
     {
         registerEvent(event);
         hubEvent = event;
@@ -300,7 +317,7 @@ public class EventTracker {
         return devEvent;
     }
 
-    public static void registerDevEvent(EventBase event)
+    public static void registerDevEvent(HubEventBase event)
     {
         registerEvent(event);
         devEvent = event;

@@ -8,8 +8,7 @@ import cd.arnett.advent.commands.commandTree.destinations.TeleportDestinationCom
 import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.advent.destinations.circle.CircleDestination;
 import cd.arnett.advent.destinations.spot.SpotDestination;
-import cd.arnett.advent.events.provided.building.AdventBuildEvent;
-import cd.arnett.advent.listeners.FreezeListener;
+import cd.arnett.advent.listeners.FreezeManager;
 import cd.arnett.advent.listeners.JoinQuitListener;
 import cd.arnett.advent.events.provided.EliminationRelocationStateEvent;
 import cd.arnett.advent.events.provided.dev.AdventDevEvent;
@@ -51,7 +50,7 @@ public final class Advent extends JavaPlugin {
 
         // register Listeners
         getServer().getPluginManager().registerEvents(new JoinQuitListener(), this);
-        getServer().getPluginManager().registerEvents(new FreezeListener(), this);
+        getServer().getPluginManager().registerEvents(new FreezeManager(), this);
         getServer().getPluginManager().registerEvents(new PvpListener(), this);
 
         //register commands
@@ -71,8 +70,6 @@ public final class Advent extends JavaPlugin {
             DestinationManager.registerType(BoxDestination.class);
             DestinationManager.registerType(CircleDestination.class);
             DestinationManager.registerType(SpotDestination.class);
-            DestinationManager.readData();
-            DestinationManager.startDisplayTask();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -80,11 +77,18 @@ public final class Advent extends JavaPlugin {
         //register and read events
         EventTracker.registerHubEvent(new AdventHubEvent());
         EventTracker.registerDevEvent(new AdventDevEvent());
-        EventTracker.registerBuildEvent(new AdventBuildEvent());
         EventTracker.registerEvent(new TestEvent());
         EventTracker.registerEvent(new EliminationEvent());
         EventTracker.registerEvent(new EliminationRelocationEvent());
         EventTracker.registerEvent(new EliminationRelocationStateEvent());
+
+        try {
+            DestinationManager.readData();
+            DestinationManager.startDisplayTask();
+            EventTracker.loadRegisteredEvents();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

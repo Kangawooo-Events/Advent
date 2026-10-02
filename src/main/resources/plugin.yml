@@ -4,3 +4,12 @@ version: '${version}'
 main: cd.arnett.advent.Advent
 api-version: '1.21'
 load: POSTWORLD
+
+dependencies:
+  server:
+    WorldManager:
+      load: BEFORE
+    Multiverse-Core:
+      load: BEFORE
+    WorldGuard:
+      load: BEFORE

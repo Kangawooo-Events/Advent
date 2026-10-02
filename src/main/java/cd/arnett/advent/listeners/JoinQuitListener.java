@@ -18,28 +18,49 @@ public class JoinQuitListener implements Listener {
         var hubEvent = EventTracker.getHubEvent();
         var devEvent = EventTracker.getDevEvent();
 
-        //try to autojoin dev first
-        if(devEvent.join(player))
-        {
-            return;
-        }
-
+        //find event to place player in
         for (EventBase event : EventTracker.getRegisteredEvents(player.getUniqueId())) {
             if(event == hubEvent || event == devEvent)
                 continue;
 
-            if(event.join(player))
+            if(event.autoJoin() && event.canJoin(player))
             {
+                event.join(player).thenAcceptAsync(result -> {
+                    if (!result)
+                    {
+                        loginToHub(e);
+                    }
+                });
                 return;
             }
         }
 
-        //no autojoin event was found so join hub
-        if(!hubEvent.join(player)){
-            player.kick(MiniMessage.miniMessage().deserialize(
-                    "<color:#ff597a>You Are Not Allowed To Join This Server's Hub"
-            ));
+        //try to autojoin dev first if they are opposed
+        if(player.isOp() && devEvent.canJoin(player))
+        {
+            devEvent.join(player).thenAcceptAsync(result -> {
+                if (!result)
+                {
+                    loginToHub(e);
+                }
+            });
         }
+        else
+        {
+            loginToHub(e);
+        }
+    }
+
+    void loginToHub(PlayerJoinEvent e)
+    {
+        EventTracker.getHubEvent().join(e.getPlayer()).thenAcceptAsync(result -> {
+            if(!result)
+            {
+                e.getPlayer().kick(MiniMessage.miniMessage().deserialize(
+                        "<color:#ff597a>You Failed To Join This Server's Hub"
+                ));
+            }
+        });
     }
 
     @EventHandler

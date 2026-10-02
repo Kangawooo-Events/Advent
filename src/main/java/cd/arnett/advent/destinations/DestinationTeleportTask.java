@@ -3,12 +3,15 @@ package cd.arnett.advent.destinations;
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.DestinationManager;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
+import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -127,135 +130,72 @@ public class DestinationTeleportTask {
      * Teleports players asynchronously
      * @param entities Entities to teleport
      */
-    public void teleportAsync(Entity... entities)
+    public List<CompletableFuture<Boolean>> teleportAsync(Entity... entities)
     {
-        AtomicInteger counter = new AtomicInteger(0);
-        AtomicInteger rollSize = new AtomicInteger(Math.max(totalCapacity.get(), entities.length));
-        //batch out teleports
-        Bukkit.getScheduler().runTaskTimerAsynchronously(Advent.singleton, (task) -> {
-            try {
+        ArrayList<CompletableFuture<Boolean>> teleportFutures = new ArrayList<>();
 
-                var rand = new Random();
+        for (Entity entity : entities) {
+            teleportFutures.add(teleportAsync(entity));
+        }
 
-                for (int i = 0; i < 10 && (counter.get() < entities.length); i++) {
-                    Entity entity = entities[counter.get()];
-                    counter.getAndIncrement();
+        return teleportFutures;
+    }
 
-                    int roll = rand.nextInt(rollSize.get()) + 1;
-
-                    for(var entry : modifiableDestinationCapacities.entrySet()) {
-                        roll -= entry.getValue();
-                        if(roll <= 0)
-                        {
-                            //teleport and decrement capacity
-                            entity.teleportAsync(entry.getKey().getSafeDestination());
-                            modifiableDestinationCapacities.put(entry.getKey(), entry.getValue() - 1);
-                            totalCapacity.decrementAndGet();
-                            break;
-                        }
-                    }
-
-                    //if we found a destination then don't go to uncapped
-                    if(roll <= 0)
-                    {
-                        return;
-                    }
-
-                    //roll greater than capacity
-                    if(!uncappedDestinations.isEmpty())
-                    {
-                        entity.teleportAsync(
-                                uncappedDestinations.get(
-                                        rand.nextInt(uncappedDestinations.size())
-                                ).getSafeDestination()
-                        );
-                    }
-                    else
-                    {
-
-                        if(modifiableDestinationCapacities.isEmpty())
-                        {
-                            Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Like at all :(");
-                            return;
-                        }
-
-                        Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Sending to capped destination");
-                        entity.teleportAsync(
-                                modifiableDestinationCapacities.keySet().iterator().next().getDestination()
-                        );
-                    }
-                    rollSize.getAndDecrement();
-                }
-
-                if(counter.get() >= entities.length)
-                    task.cancel();
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-        }, 0, 1);
-
+    public CompletableFuture<Boolean> teleportAsync(Entity entity)
+    {
+        System.out.println("Gpnna tp group PLAYER");
+        return entity.teleportAsync(popTeleportDestination(), PlayerTeleportEvent.TeleportCause.PLUGIN);
     }
 
     /**
-     * Teleports players asynchronously
-     * @param entity Entity to teleport
+     * Pops a teleport destination from capacities
+     * @return Teleport location
      */
-    public void teleportAsync(Entity entity)
+    public Location popTeleportDestination()
     {
-        AtomicInteger counter = new AtomicInteger(0);
-        AtomicInteger rollSize = new AtomicInteger(totalCapacity.get());
+        int rollSize = Math.max(totalCapacity.get(), 1);
+
+        //batch out teleports
         var rand = new Random();
-        counter.getAndIncrement();
-
-        int roll = rand.nextInt(rollSize.get()) + 1;
-
+        int roll = rand.nextInt(rollSize);
 
         for(var entry : modifiableDestinationCapacities.entrySet()) {
             roll -= entry.getValue();
             if(roll <= 0)
             {
+                System.out.println("TELEPORTATION PLAYER");
                 //teleport and decrement capacity
-                entity.teleportAsync(entry.getKey().getSafeDestination());
+                var dest = entry.getKey().getSafeDestination();
                 modifiableDestinationCapacities.put(entry.getKey(), entry.getValue() - 1);
                 totalCapacity.decrementAndGet();
-                break;
+                return dest;
             }
-        }
-
-        //if we found a destination then don't go to uncapped
-        if(roll <= 0)
-        {
-            return;
         }
 
         //roll greater than capacity
         if(!uncappedDestinations.isEmpty())
         {
-            entity.teleportAsync(
-                    uncappedDestinations.get(
-                            rand.nextInt(uncappedDestinations.size())
-                    ).getSafeDestination()
-            );
+            var dest = uncappedDestinations.get(
+                    rand.nextInt(uncappedDestinations.size())
+            ).getSafeDestination();
+            return dest;
         }
         else
         {
-
+            //this is only true if the loop can't find a spot
             if(modifiableDestinationCapacities.isEmpty())
             {
                 Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Like at all :(");
-                return;
+                var future = new CompletableFuture<Boolean>();
+                future.complete(false);
+                return null;
             }
 
             Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Sending to capped destination");
-            entity.teleportAsync(
-                    modifiableDestinationCapacities.keySet().iterator().next().getDestination()
-            );
+            var dest = modifiableDestinationCapacities.keySet().iterator().next().getDestination();
+            return dest;
         }
-        rollSize.getAndDecrement();
     }
-
 
     /**
      * @return number of destinations

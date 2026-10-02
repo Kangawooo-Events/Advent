@@ -16,6 +16,7 @@ import org.bukkit.entity.Player;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public interface RelocationModule extends EventType {
 
@@ -33,7 +34,9 @@ public interface RelocationModule extends EventType {
     @DestinationTeleportTaskModuleData
     default DestinationTeleportTask joinDestinationTaskData()
     {
-        return new DestinationTeleportTask(getEvent().eventKey(), "JOIN");
+        return new DestinationTeleportTask(
+                getEvent().eventKey(), "JOIN"
+        );
     }
 
 
@@ -148,17 +151,32 @@ public interface RelocationModule extends EventType {
 
     //todo add event list checks
 
-    @OnJoinEvent
-    default void teleportOnJoin(Player joined)
+    @OnJoinEvent(priority = JoinTaskPriority.EARLY)
+    default CompletableFuture<Boolean> teleportOnJoin(Player joined)
     {
+
         //teleport to event location
         if(saveEventLocation() && hasEventLocation(joined))
         {
-            joined.teleportAsync(getEventLocation(joined));
+            var fallbackFuture = new CompletableFuture<Boolean>();
+            var location = getEventLocation(joined);
+            var future = joined.teleportAsync(location);
+            future.thenAccept(result -> {
+                if (!result)
+                {
+                    fallbackFuture.complete(joined.teleport(location));
+                }
+                else
+                {
+                    fallbackFuture.complete(true);
+                }
+            });
+            return fallbackFuture;
         }
 
         //no event location so to a join destination
-        teleportPlayerToJoinDestination(joined);
+
+        return teleportToJoinDestination(joined);
     }
 
     @OnLeaveEvent
@@ -168,24 +186,23 @@ public interface RelocationModule extends EventType {
         getEventLocations().put(left.getUniqueId(), left.getLocation());
     }
 
-
-    //endregion
-
-
-
-    //region Teleporting
-
-    /*=================================================================================================
-                        -  Teleporting  -
-    =================================================================================================*/
-
-    /**
-     * Teleports a player to one of the join destinations
-     * @param player player to teleport
-     */
-    default void teleportPlayerToJoinDestination(Player player)
+    default CompletableFuture<Boolean> teleportToJoinDestination(Player player)
     {
-        getJoinTeleportTask().teleportAsync(player);
+        var fallbackFuture = new CompletableFuture<Boolean>();
+        Location destination = getJoinTeleportTask().popTeleportDestination();
+        player.teleportAsync(destination).thenAccept(result -> {
+            if (!result)
+            {
+                fallbackFuture.complete(player.teleport(destination));
+
+            }
+            else
+            {
+                fallbackFuture.complete(true);
+            }
+        });
+
+        return fallbackFuture;
     }
 
 

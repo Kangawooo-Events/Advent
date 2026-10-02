@@ -8,6 +8,7 @@ import cd.arnett.advent.events.annotations.WriteYaml;
 import cd.arnett.advent.events.controls.*;
 import cd.arnett.advent.events.controls.registration.AddRegistrationCommand;
 import cd.arnett.advent.events.controls.registration.RemoveRegistrationCommand;
+import cd.arnett.advent.listeners.FreezeManager;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import com.destroystokyo.paper.profile.PlayerProfile;
@@ -20,6 +21,8 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -28,6 +31,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -39,8 +43,10 @@ import java.util.function.BiConsumer;
  */
 public abstract class EventBase {
 
+    private static final Logger log = LoggerFactory.getLogger(EventBase.class);
     HashMap<UUID, PlayerEventStatus> registeredPlayers = new HashMap<>();
     HashMap<Class<? extends Annotation>, HashMap<Method, Annotation>> callbacks = new HashMap<>();
+    EnumMap<JoinTaskPriority, ArrayList<Method>> joinTasks = new EnumMap<>(JoinTaskPriority.class);
 
     /**
      * stores data from modules
@@ -78,13 +84,21 @@ public abstract class EventBase {
                 annotations.addAll(Arrays.asList(higherarchyMethod.getAnnotations()));
             });
 
-
+            outer:
             for (Annotation annotation : annotations)
             {
                 callbacks.computeIfAbsent(annotation.annotationType(),
                         ann -> new HashMap<>()).put(method, annotation);
 
+                //if it is a join annotation then add it to the join tasks map
+                if(annotation instanceof OnJoinEvent joinAnnotation)
+                {
+                    var priority = joinAnnotation.priority();
+                    joinTasks.computeIfAbsent(priority, p -> new ArrayList<>()).add(method);
+                    continue;
+                }
 
+                //check for automated data
                 ModuleDataProvider[] trackedListAnnotations = method.getAnnotationsByType(ModuleDataProvider.class);
                 for(ModuleDataProvider ann : trackedListAnnotations)
                 {
@@ -97,6 +111,7 @@ public abstract class EventBase {
                     {
                         Advent.logger.warning("Unable to use module data: " + method.getName());
                     }
+                    continue outer;
                 }
             }
         }
@@ -198,6 +213,191 @@ public abstract class EventBase {
     //endregion
 
 
+    //region Join / Leave
+
+    /*=================================================================================================
+                        -  Join / Leave  -
+    =================================================================================================*/
+
+
+    /**
+     * Makes a player join the event if registered (Absent -> Playing)
+     * @param player Player who joined
+     * @return Whether the player was allowed to join
+     */
+    public final CompletableFuture<Boolean> join(Player player)
+    {
+        var id = player.getUniqueId();
+        var lastEvent = EventTracker.getPlayingEvent(player.getUniqueId());
+
+        //check if player can join first
+        if(!canJoin(player))
+        {
+            var future = new CompletableFuture<Boolean>();
+            future.complete(false);
+            return future;
+        }
+
+        //leave the last event they were in
+        if(lastEvent != null)
+        {
+            lastEvent.leave(player);
+        }
+
+
+        //process joinTasks
+        try {
+            CompletableFuture<Boolean> joinTask = processJoinTasks(player);
+
+            //define the process after the task completes
+            joinTask.thenAcceptAsync(result -> {
+                if(result)
+                {
+                    //if they successfully joined this event set them as such in the tracker
+                    EventTracker.setPlayingEvent(id, this);
+                    registeredPlayers.put(id, PlayerEventStatus.PLAYING);
+                    EventTracker.limboPlayers.remove(id);
+                }
+                else
+                {
+                    failJoinFallback(player);
+                }
+            });
+
+            return joinTask;
+        }
+
+        //fail joining
+        catch (Exception e)
+        {
+            Advent.logger.warning("Unable To join Event " + eventKey());
+            e.printStackTrace();
+            var future = new CompletableFuture<Boolean>();
+            future.complete(false);
+            return future;
+        }
+    }
+
+    /**
+     * Called when the join task fails
+     * @param player player who failed to join
+     */
+    protected void failJoinFallback(Player player)
+    {
+        EventTracker.getHubEvent().join(player);
+    }
+
+    /**
+     * Processes the join tasks for a given player recursively
+     * @param player player to process
+     * @return Future to be completed with a true if successfully joining or false with a failed joining
+     */
+    final CompletableFuture<Boolean> processJoinTasks(Player player)
+            throws InvocationTargetException, IllegalAccessException {
+
+        var iterator = joinTasks.entrySet().iterator();
+        var joinFuture = new CompletableFuture<Boolean>();
+
+        processJoinTasks(
+                player,
+                iterator,
+                iterator.next().getValue().iterator(),
+                joinFuture
+        );
+
+        return joinFuture;
+    }
+
+    /**
+     * Processes the join tasks for a given player recursively
+     * @param player player to process
+     * @param priorityIterator iterator through join task priorities (gotten by joinTasks.entrySet().iterator())
+     * @param methodIterator iterator through the methods in the join task priorities
+     * @param processFuture Future to be completed with a true if successfully joining or false with a failed joining
+     */
+    final void processJoinTasks(
+            Player player,
+            Iterator<Map.Entry<JoinTaskPriority, ArrayList<Method>>> priorityIterator,
+            Iterator<Method> methodIterator,
+            CompletableFuture<Boolean> processFuture
+    ) throws InvocationTargetException, IllegalAccessException {
+
+        CompletableFuture<Boolean> joinFuture = null;
+        //run through methods that execute immediately which cant fail
+        while(joinFuture == null && methodIterator.hasNext()){
+            joinFuture = (CompletableFuture<Boolean>)methodIterator.next().invoke(this, player);
+        }
+
+
+        //if we found a future that needs to be completed first
+        if(joinFuture != null)
+        {
+            joinFuture.thenAcceptAsync(result -> {
+                if(result)
+                {
+                    //task completed successfully so continue processing
+                    try {
+                        processJoinTasks(
+                                player,
+                                priorityIterator,
+                                methodIterator,
+                                processFuture
+                        );
+                    } catch (InvocationTargetException | IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else
+                {
+                    //failed joining
+                    processFuture.complete(false);
+                }
+            });
+        }
+
+        //if there is no other method for this priority then go to the next
+        else {
+            if(!priorityIterator.hasNext())
+            {
+                //out of elements so complete the process future and end processing
+                processFuture.complete(true);
+            }
+            else
+            {
+                //still more priorities to process
+                processJoinTasks(
+                        player,
+                        priorityIterator,
+                        priorityIterator.next().getValue().iterator(),
+                        processFuture
+                );
+            }
+        }
+
+    }
+
+    /**
+     * forces a player to leave the event (if you want to revoke registration this is different)
+     * @param player Player who left
+     */
+    public final void leave(Player player)
+    {
+        var id = player.getUniqueId();
+        System.out.println("Leaving event");
+        if(isPlaying(id))
+        {
+            System.out.println("Leaving event frfr");
+            //clear tracked event
+            EventTracker.clearPlayingEvent(id);
+            registeredPlayers.put(id, PlayerEventStatus.ABSENT);
+            invokeCallbacks(OnLeaveEvent.class, null, player);
+        }
+    }
+
+
+    //endregion
+
+
 
     //region Controls
 
@@ -235,51 +435,6 @@ public abstract class EventBase {
 
         isActive = false;
         invokeCallbacks(OnEventClose.class);
-    }
-
-    /**
-     * Makes a player join the event if registered (Absent -> Playing)
-     * @param player Player who joined
-     * @return Whether the player was allowed to join
-     */
-    public final boolean join(Player player)
-    {
-        var id = player.getUniqueId();
-        var lastEvent = EventTracker.getPlayingEvent(player.getUniqueId());
-
-        //check if player can join first
-        if(!canJoin(player))
-        {
-            return false;
-        }
-
-        //leave the last event they were in
-        if(lastEvent != null)
-        {
-            lastEvent.leave(player);
-        }
-
-        //set player to playing
-        registeredPlayers.put(id, PlayerEventStatus.PLAYING);
-        EventTracker.setPlayingEvent(id, this);
-        invokeCallbacks(OnJoinEvent.class, null, player);
-        return true;
-    }
-
-    /**
-     * forces a player to leave the event (if you want to revoke registration this is different)
-     * @param player Player who left
-     */
-    public final void leave(Player player)
-    {
-        var id = player.getUniqueId();
-
-        if(isPlaying(id))
-        {
-            //remove this from their event stack
-            registeredPlayers.put(id, PlayerEventStatus.ABSENT);
-            invokeCallbacks(OnLeaveEvent.class, null, player);
-        }
     }
 
     /**
@@ -866,7 +1021,6 @@ public abstract class EventBase {
 
 
         automaticDataKeys.forEach((annotation, keys) -> {
-            System.out.println("reading " + annotation.annotationType());
             keys.forEach(key -> {
                 var dataProvider = automaticModuleAnnotations.get(key);
                 if(dataProvider.key().equalsIgnoreCase("event"))

@@ -6,6 +6,8 @@ import cd.arnett.advent.events.annotations.data.PlayerStateModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
 import cd.arnett.advent.events.modules.EventType;
 import cd.arnett.advent.events.modules.playerState.controls.ClearStatesCommand;
+import cd.arnett.advent.events.modules.playerState.controls.def.SetDefaultStateCommand;
+import cd.arnett.advent.events.modules.playerState.controls.def.resetDefaultStateCommand;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import org.bukkit.Bukkit;
@@ -75,6 +77,7 @@ public interface SeparateStateModule extends EventType {
     @OnLeaveEvent
     default void saveStateOnLeave(Player joined)
     {
+        System.out.println("saving statedata");
         getPlayerStates().put(joined.getUniqueId(), new PlayerState(joined));
     }
 
@@ -127,7 +130,15 @@ public interface SeparateStateModule extends EventType {
     @EventControl
     default Cattamand getRemoveStateControl()
     {
-        return new LiteralCattamand("states", List.of(new ClearStatesCommand())) ;
+        return new LiteralCattamand("states",
+                List.of(
+                        new ClearStatesCommand(),
+                        new LiteralCattamand("default", List.of(
+                                new resetDefaultStateCommand(),
+                                new SetDefaultStateCommand()
+                        ))
+                )
+        ) ;
     }
 
 

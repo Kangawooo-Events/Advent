@@ -14,7 +14,7 @@ public class TestRelocationCommand extends EventModuleCattamand<RelocationModule
     @Override
     public int execute(CommandContext<CommandSourceStack> context, RelocationModule eventModule) throws CommandSyntaxException {
         var sender = ArgumentHelper.getPlayerSender(context);
-        eventModule.teleportPlayerToJoinDestination(sender);
+        eventModule.teleportToJoinDestination(sender);
         return 0;
     }
 

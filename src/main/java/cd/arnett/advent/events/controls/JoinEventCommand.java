@@ -11,7 +11,11 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class JoinEventCommand extends EventBaseCattamand {
     @Override
@@ -28,8 +32,12 @@ public class JoinEventCommand extends EventBaseCattamand {
             return 0;
         }
 
-        event.join(sender);
-        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98><bold>Joined</bold> Event " + event.eventKey().toString());
+        event.join(sender).thenAcceptAsync(result -> {
+            if(result)
+                ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98><bold>Joined</bold> Event " + event.eventKey().toString());
+            else
+                ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>You are <bold>Unable to Join</bold> Event " + event.eventKey().toString());
+        });
 
         return 0;
     }
@@ -37,30 +45,39 @@ public class JoinEventCommand extends EventBaseCattamand {
     public int groupExecute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
 
-        boolean allJoin = true;
+        AtomicInteger joinFailures = new AtomicInteger(0);
 
         EventBase event = getEvent(context);
+        ArrayList<CompletableFuture<Boolean>> teleportationTasks = new ArrayList<>();
 
         for (Player target : targets) {
-            if(!event.join(target))
-                allJoin = false;
+            var task = event.join(target);
+            task.thenAcceptAsync(result -> {
+                if(!result)
+                {
+                    joinFailures.incrementAndGet();
+                }
+            });
+            teleportationTasks.add(task);
         }
 
-        targets.forEach(event::join);
-
-        if(allJoin)
-        {
-            ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98>"
-                    + "Player(s) <bold>Joined</bold> Event "
-                    + event.eventKey().toString());
-        }
-        else
-        {
-            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>"
-                    + "Not all Player(s) were able to Join Event "
-                    + event.eventKey().toString());
-        }
-
+        CompletableFuture.allOf(teleportationTasks.toArray(CompletableFuture[]::new)).thenAccept(
+                (a) -> {
+                    if(joinFailures.get() > 0)
+                    {
+                        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98>"
+                                + "Player(s) All players <bold>Joined</bold> Event "
+                                + event.eventKey().toString());
+                    }
+                    else
+                    {
+                        ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>"
+                                + joinFailures.get()
+                                + " Player(s) were able to Join Event "
+                                + event.eventKey().toString());
+                    }
+                }
+        );
 
         return 0;
     }

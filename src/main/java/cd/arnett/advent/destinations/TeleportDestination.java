@@ -299,11 +299,17 @@ public abstract class TeleportDestination {
             color = yaml.getColor("color");
             capacity = yaml.getInt("capacity");
             id = UUID.fromString(yaml.getString("id"));
+            if(location == null)
+            {
+                Advent.logger.warning("UNABLE TO READ IN DESTINATION, WORLD NOT LOADED");
+                return null;
+            }
         }
         catch (Exception e)
         {
             Advent.logger.warning("UNABLE TO READ IN DESTINATION");
             e.printStackTrace();
+            return null;
         }
         return this;
     }

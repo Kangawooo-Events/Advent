@@ -54,6 +54,9 @@ public class DestinationManager {
      */
     public static void addDestination(TeleportDestination destination)
     {
+        if (destination == null)
+            return;
+
         //add to list or create one if not there
         eventDestinations.column(destination.getTag()).computeIfAbsent(
                 destination.getEventId(),
@@ -182,7 +185,11 @@ public class DestinationManager {
     public static int teleportToDestination(NamespacedKey eventID, String destinationTag, Entity... entities)
     {
         var task = new DestinationTeleportTask(eventID, destinationTag);
-        task.teleportAsync(entities);
+        task.teleportAsync(entities).forEach(future -> {
+            future.thenAccept(boo -> {
+                System.out.println("TELEPORY SUCCESS " + boo);
+            });
+        });
         return task.getDestinationCount();
     }
 
@@ -378,14 +385,13 @@ public class DestinationManager {
      */
     public static void readData() throws IOException {
 
-        Advent.logger.info("Reading Destinations");
-
         //get the path of the data folder
         File dataFolder = Advent.singleton.getDataFolder();
         Path dataFolderPath = dataFolder.toPath();
 
         //get the path to the Menus directory
         Path destFolderPath = dataFolderPath.resolve("Destinations");
+
         //make sure that menus directory exists
         if(!Files.exists(destFolderPath))
         {

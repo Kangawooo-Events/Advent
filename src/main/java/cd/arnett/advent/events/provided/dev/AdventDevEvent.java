@@ -5,34 +5,17 @@ import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.modules.playerState.PlayerState;
 import cd.arnett.advent.events.modules.playerState.SeparateStateModule;
 import cd.arnett.advent.events.modules.relocation.RelocationModule;
+import cd.arnett.advent.events.types.HubEventBase;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
-public class AdventDevEvent extends EventBase implements RelocationModule, SeparateStateModule {
+public class AdventDevEvent extends HubEventBase {
+
     @Override
     public NamespacedKey eventKey() {
         return new NamespacedKey(Advent.singleton, "dev");
-    }
-
-    @Override
-    public boolean requiresRegistration() {
-        return true;
-    }
-
-    @Override
-    public boolean autoJoin() {
-        return true;
-    }
-
-    @Override
-    public boolean autoOpen() {
-        return true;
-    }
-
-    @Override
-    public boolean preventLeavingWhilePlaying() {
-        return false;
     }
 
     @Override
@@ -59,11 +42,12 @@ public class AdventDevEvent extends EventBase implements RelocationModule, Separ
 
     @Override
     public PlayerState defaultJoinState() {
-        return new PlayerState();
+        return new PlayerState().setGamemode(GameMode.CREATIVE);
     }
 
     @Override
     public boolean saveEventLocation() {
         return false;
     }
+
 }

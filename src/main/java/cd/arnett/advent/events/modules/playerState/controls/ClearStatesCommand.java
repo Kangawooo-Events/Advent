@@ -36,11 +36,18 @@ public class ClearStatesCommand extends EventModuleCattamand<SeparateStateModule
                         ArgumentTypes.playerProfiles(),
                         (ctx) ->
                         {
-                            EventBase base = getEvent(ctx);
-                            SeparateStateModule module = (SeparateStateModule) base;
-                            return module.getPlayerStates().entrySet().stream().map(
-                                    entry -> Bukkit.createProfile(entry.getKey()).getName()
-                                    ).toList();
+                            try {
+                                EventBase base = getEvent(ctx);
+                                SeparateStateModule module = (SeparateStateModule) base;
+                                return module.getPlayerStates().entrySet().stream().map(
+                                        entry -> Bukkit.createProfile(entry.getKey()).getName()
+                                ).toList();
+                            }
+                            catch (Exception e)
+                            {
+                                e.printStackTrace();
+                            }
+                            return List.of();
                         },
                         null,
                         false
