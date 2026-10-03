@@ -1,5 +1,6 @@
 package cd.arnett.advent.events.modules.relocation;
 
+import cd.arnett.advent.Advent;
 import cd.arnett.advent.destinations.DestinationTeleportTask;
 import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.data.DestinationTeleportTaskModuleData;
@@ -17,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public interface RelocationModule extends EventType {
 
@@ -154,6 +156,9 @@ public interface RelocationModule extends EventType {
     @OnJoinEvent(priority = JoinTaskPriority.EARLY)
     default CompletableFuture<Boolean> teleportOnJoin(Player joined)
     {
+        //remove mounts
+        if(!joined.getPassengers().isEmpty())
+            joined.eject();
 
         //teleport to event location
         if(saveEventLocation() && hasEventLocation(joined))
@@ -165,6 +170,11 @@ public interface RelocationModule extends EventType {
                 if (!result)
                 {
                     fallbackFuture.complete(joined.teleport(location));
+                    try {
+                        System.out.println("Backup Teleport " + fallbackFuture.get());
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
                 else
                 {
@@ -190,11 +200,21 @@ public interface RelocationModule extends EventType {
     {
         var fallbackFuture = new CompletableFuture<Boolean>();
         Location destination = getJoinTeleportTask().popTeleportDestination();
+        if(destination == null)
+        {
+            fallbackFuture.complete(false);
+            return fallbackFuture;
+        }
+
         player.teleportAsync(destination).thenAccept(result -> {
             if (!result)
             {
                 fallbackFuture.complete(player.teleport(destination));
-
+                try {
+                    System.out.println("Backup Teleport " + fallbackFuture.get());
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
             }
             else
             {

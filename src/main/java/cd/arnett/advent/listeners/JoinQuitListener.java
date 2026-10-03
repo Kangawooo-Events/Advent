@@ -18,6 +18,8 @@ public class JoinQuitListener implements Listener {
         var hubEvent = EventTracker.getHubEvent();
         var devEvent = EventTracker.getDevEvent();
 
+        System.out.println("JOINING");
+
         //find event to place player in
         for (EventBase event : EventTracker.getRegisteredEvents(player.getUniqueId())) {
             if(event == hubEvent || event == devEvent)
@@ -25,9 +27,11 @@ public class JoinQuitListener implements Listener {
 
             if(event.autoJoin() && event.canJoin(player))
             {
+                System.out.println("Attempting to joing " + event.eventKey());
                 event.join(player).thenAcceptAsync(result -> {
                     if (!result)
                     {
+                        System.out.println("fallingback hub for " + event.eventKey());
                         loginToHub(e);
                     }
                 });
@@ -38,15 +42,12 @@ public class JoinQuitListener implements Listener {
         //try to autojoin dev first if they are opposed
         if(player.isOp() && devEvent.canJoin(player))
         {
-            devEvent.join(player).thenAcceptAsync(result -> {
-                if (!result)
-                {
-                    loginToHub(e);
-                }
-            });
+            System.out.println("Attempting to joing dev");
+            devEvent.join(player);
         }
         else
         {
+            System.out.println("Attempting to joing hub");
             loginToHub(e);
         }
     }

@@ -8,7 +8,6 @@ import cd.arnett.advent.events.annotations.WriteYaml;
 import cd.arnett.advent.events.controls.*;
 import cd.arnett.advent.events.controls.registration.AddRegistrationCommand;
 import cd.arnett.advent.events.controls.registration.RemoveRegistrationCommand;
-import cd.arnett.advent.listeners.FreezeManager;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import com.destroystokyo.paper.profile.PlayerProfile;

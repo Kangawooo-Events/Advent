@@ -2,11 +2,10 @@ package cd.arnett.advent;
 
 import cd.arnett.advent.events.PlayerEventStatus;
 import cd.arnett.advent.events.EventBase;
-import cd.arnett.advent.events.types.HubEventBase;
+import cd.arnett.advent.events.types.LobbyEventBase;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.event.Listener;
 
 import java.io.File;
 import java.io.IOException;
@@ -295,7 +294,7 @@ public class EventTracker {
         return hubEvent;
     }
 
-    public static void registerHubEvent(HubEventBase event)
+    public static void registerHubEvent(LobbyEventBase event)
     {
         registerEvent(event);
         hubEvent = event;
@@ -317,7 +316,7 @@ public class EventTracker {
         return devEvent;
     }
 
-    public static void registerDevEvent(HubEventBase event)
+    public static void registerDevEvent(LobbyEventBase event)
     {
         registerEvent(event);
         devEvent = event;
