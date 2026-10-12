@@ -6,7 +6,7 @@ import cd.arnett.advent.events.annotations.EventInfoProvider;
 import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDModuleData;
-import cd.arnett.advent.events.modules.EventType;
+import cd.arnett.advent.events.modules.EventModule;
 import cd.arnett.advent.events.modules.winnable.controls.GrantWinCommand;
 import cd.arnett.advent.events.modules.winnable.controls.RevokeWinCommand;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
@@ -18,7 +18,7 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public interface WinnableModule extends EventType {
+public interface WinnableModule extends EventModule {
 
     String winnableFileName = "Winnable";
     String winnersListName = "winners";
@@ -36,7 +36,7 @@ public interface WinnableModule extends EventType {
      */
     @ModuleDataProvider(key = winnersListName, fileBasename = winnableFileName)
     @HashSetModuleData(type = UUIDModuleData.class)
-    default HashSet<UUID> winningPlayers()
+    default HashSet<UUID> defineWinningPlayers()
     {
         return new HashSet<>();
     }

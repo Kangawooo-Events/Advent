@@ -8,6 +8,7 @@ import cd.arnett.advent.commands.commandTree.destinations.TeleportDestinationCom
 import cd.arnett.advent.destinations.box.BoxDestination;
 import cd.arnett.advent.destinations.circle.CircleDestination;
 import cd.arnett.advent.destinations.spot.SpotDestination;
+import cd.arnett.advent.events.provided.admin.AdventAdminEvent;
 import cd.arnett.advent.listeners.FreezeManager;
 import cd.arnett.advent.listeners.JoinQuitListener;
 import cd.arnett.advent.events.provided.EliminationRelocationStateEvent;
@@ -17,6 +18,7 @@ import cd.arnett.advent.events.provided.EliminationEvent;
 import cd.arnett.advent.events.provided.EliminationRelocationEvent;
 import cd.arnett.advent.events.provided.TestEvent;
 import cd.arnett.advent.listeners.PvpListener;
+import cd.arnett.advent.listeners.RespawnListener;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.event.Listener;
@@ -50,6 +52,7 @@ public final class Advent extends JavaPlugin {
 
         // register Listeners
         getServer().getPluginManager().registerEvents(new JoinQuitListener(), this);
+        getServer().getPluginManager().registerEvents(new RespawnListener(), this);
         getServer().getPluginManager().registerEvents(new FreezeManager(), this);
         getServer().getPluginManager().registerEvents(new PvpListener(), this);
 
@@ -62,6 +65,9 @@ public final class Advent extends JavaPlugin {
         )).setAliases(List.of("dest", "eventdestination")).registerAsRoot(this);
         new HubCommand().registerAsRoot(this);
         new DevCommand().registerAsRoot(this);
+        new AdminCommand().registerAsRoot(this);
+        new JoinCommand().registerAsRoot(this);
+        new GoToCommand().registerAsRoot(this);
         new FreezePlayerCommand().registerAsRoot(this);
         new UnfreezePlayerCommand().registerAsRoot(this);
 
@@ -77,6 +83,7 @@ public final class Advent extends JavaPlugin {
         //register and read events
         EventTracker.registerHubEvent(new AdventHubEvent());
         EventTracker.registerDevEvent(new AdventDevEvent());
+        EventTracker.registerAdminEvent(new AdventAdminEvent());
         EventTracker.registerEvent(new TestEvent());
         EventTracker.registerEvent(new EliminationEvent());
         EventTracker.registerEvent(new EliminationRelocationEvent());

@@ -1,17 +1,15 @@
 package cd.arnett.advent.events.provided.dev;
 
 import cd.arnett.advent.Advent;
-import cd.arnett.advent.events.EventBase;
+import cd.arnett.advent.events.annotations.CanJoinEvent;
 import cd.arnett.advent.events.modules.playerState.PlayerState;
-import cd.arnett.advent.events.modules.playerState.SeparateStateModule;
-import cd.arnett.advent.events.modules.relocation.RelocationModule;
-import cd.arnett.advent.events.types.HubEventBase;
+import cd.arnett.advent.events.types.LobbyEventBase;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 
-public class AdventDevEvent extends HubEventBase {
+public class AdventDevEvent extends LobbyEventBase {
 
     @Override
     public NamespacedKey eventKey() {
@@ -30,6 +28,7 @@ public class AdventDevEvent extends HubEventBase {
 
     @Override
     public void onJoinEvent(Player player) {
+        System.out.println("JOPINED DEAC");
         player.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<bold><color:#ff597a>You Joined Dev"
         ));
@@ -37,7 +36,7 @@ public class AdventDevEvent extends HubEventBase {
 
     @Override
     public void onLeaveEvent(Player player) {
-
+        System.out.println("LEFT DEAC");
     }
 
     @Override
@@ -47,7 +46,17 @@ public class AdventDevEvent extends HubEventBase {
 
     @Override
     public boolean saveEventLocation() {
-        return false;
+        return true;
     }
 
+    @Override
+    public int priority() {
+        return 1;
+    }
+
+    @CanJoinEvent
+    public boolean canJoinDev(Player player)
+    {
+        return player.isOp();
+    }
 }

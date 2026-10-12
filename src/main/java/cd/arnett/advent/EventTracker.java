@@ -1,12 +1,10 @@
 package cd.arnett.advent;
 
-import cd.arnett.advent.events.PlayerEventStatus;
 import cd.arnett.advent.events.EventBase;
-import cd.arnett.advent.events.types.HubEventBase;
+import cd.arnett.advent.events.types.LobbyEventBase;
 import org.bukkit.NamespacedKey;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.event.Listener;
+import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +22,7 @@ public class EventTracker {
      * Tracks the active events, the players in them and their status. here for faster lookup of player -> events
      * and events -> players without having to have it in separate locations
      */
-    static HashMap<NamespacedKey, EventBase> registeredEvents = new HashMap<>();
+    static TreeSet<EventBase> registeredEvents = new TreeSet<>();
 
     /**
      * Tracks what events players are playing in
@@ -32,7 +30,7 @@ public class EventTracker {
     static HashMap<UUID, EventBase> playingEvents = new HashMap<>();
     static EventBase hubEvent = null;
     static EventBase devEvent = null;
-    static EventBase buildEvent = null;
+    static EventBase adminEvent = null;
 
 
     /**
@@ -56,7 +54,7 @@ public class EventTracker {
     {
         ArrayList<EventBase> events = new ArrayList<>();
 
-        for(var entry : registeredEvents.values())
+        for(var entry : registeredEvents)
         {
             if(entry.isRegistered(playerId)) events.add(entry);
         }
@@ -97,32 +95,11 @@ public class EventTracker {
 
 
     /**
-     * Provides a copy of the player row for this event, a hashmap of the players and the player's status in them
-     * @param eventKey Event key to get data of
-     * @return copy of map of players and their status in the event
-     */
-    public static HashMap<UUID, PlayerEventStatus> getEventPlayerStatusMap(NamespacedKey eventKey)
-    {
-        return registeredEvents.get(eventKey).getPlayerStatusMap();
-    }
-
-    /**
-     * Provides a copy of the players for this event
-     * @param eventKey Event key to get data of
-     * @return copy of set of players
-     */
-    public static HashSet<UUID> getRegisteredEventPlayers(NamespacedKey eventKey)
-    {
-        return registeredEvents.get(eventKey).getRegisteredPlayers();
-    }
-
-
-    /**
      * @return Provides a list of all the active events
      */
     public static List<NamespacedKey> getEventNames()
     {
-        return List.copyOf(registeredEvents.values().stream().map(EventBase::eventKey).toList());
+        return List.copyOf(registeredEvents.stream().map(EventBase::eventKey).toList());
     }
 
     /**
@@ -130,7 +107,7 @@ public class EventTracker {
      */
     public static EventBase getEvent(NamespacedKey key)
     {
-        for (var event : registeredEvents.values())
+        for (var event : registeredEvents)
         {
             if(event.eventKey().equals(key))
                 return event;
@@ -144,9 +121,28 @@ public class EventTracker {
      */
     public static List<EventBase> getEvents()
     {
-        return List.copyOf(registeredEvents.values());
+        return List.copyOf(registeredEvents);
     }
 
+
+    /**
+     * Gets the Event with the highest priority of all events the player can join
+     * @param player Player to query
+     */
+    public static EventBase getAutoJoinEvent(Player player)
+    {
+        //gets iterator for reverse order search (greatest join priority to least)
+        var iter = registeredEvents.descendingIterator();
+
+        while(iter.hasNext())
+        {
+            EventBase event = iter.next();
+            if(event.autoJoin() && event.canJoin(player))
+                return event;
+        }
+
+        return null;
+    }
 
     //endregion
 
@@ -164,8 +160,7 @@ public class EventTracker {
      */
     public static void registerEvent(EventBase event) {
 
-        NamespacedKey eventKey = event.eventKey();
-        registeredEvents.put(eventKey, event);
+        registeredEvents.add(event);
     }
 
     /**
@@ -173,7 +168,8 @@ public class EventTracker {
      */
     static void loadRegisteredEvents()
     {
-        registeredEvents.forEach((eventKey, event) -> {
+        registeredEvents.forEach((event) -> {
+            NamespacedKey eventKey = event.eventKey();
             //get the path to the Menus directory
             Path eventDataPath = Advent.singleton.getDataFolder()
                     .toPath()
@@ -203,86 +199,6 @@ public class EventTracker {
 
 
 
-    //region Player Registration
-
-    /*=================================================================================================
-                        -  Player Registration  -
-    =================================================================================================*/
-
-
-    /**
-     * Enables a player to be able to join an event
-     * @param eventKey Key of event to register to
-     * @param id Id of player to register
-     */
-    public static void registerForEvent(NamespacedKey eventKey, UUID id)
-    {
-        registeredEvents.get(eventKey).register(id);
-    }
-
-    /**
-     * Revokes all registration from event for given player
-     * @param id Id of player to revoke
-     */
-    public static void revokeRegistrations(UUID id)
-    {
-        getRegisteredEvents(id).forEach(event -> event.revokeRegistration(id));
-    }
-
-    /**
-     * Revokes a players registration from an event
-     * @param eventKey Key of event to revoke registration from
-     * @param id Id of player to revoke
-     */
-    public static void revokeRegistration(NamespacedKey eventKey, UUID id)
-    {
-        registeredEvents.get(eventKey).register(id);
-    }
-
-
-
-
-
-    //region Overrides
-
-    //----------= Overrides =-----------------------------------------------------------------------------
-
-
-    /**
-     * Enables a player to be able to join an event
-     * @param eventKey Key of event to register to
-     * @param player Player to register
-     */
-    public static void registerForEvent(NamespacedKey eventKey, OfflinePlayer player)
-    {
-        registerForEvent(eventKey, player.getUniqueId());
-    }
-
-    /**
-     * Revokes a players registration from an event
-     * @param eventKey Key of event to revoke registration from
-     * @param player Player to revoke
-     */
-    public static void revokeRegistration(NamespacedKey eventKey, OfflinePlayer player)
-    {
-        revokeRegistration(eventKey, player.getUniqueId());
-    }
-
-    /**
-     * Revokes all registration from event for given player
-     * @param player Player to revoke
-     */
-    public static void revokeRegistrations(OfflinePlayer player)
-    {
-        revokeRegistrations(player.getUniqueId());
-    }
-
-    //endregion
-
-    //endregion
-
-
-
     //region Hub
 
     /*=================================================================================================
@@ -295,7 +211,7 @@ public class EventTracker {
         return hubEvent;
     }
 
-    public static void registerHubEvent(HubEventBase event)
+    public static void registerHubEvent(LobbyEventBase event)
     {
         registerEvent(event);
         hubEvent = event;
@@ -317,7 +233,7 @@ public class EventTracker {
         return devEvent;
     }
 
-    public static void registerDevEvent(HubEventBase event)
+    public static void registerDevEvent(LobbyEventBase event)
     {
         registerEvent(event);
         devEvent = event;
@@ -330,19 +246,27 @@ public class EventTracker {
     //region Build
 
     /*=================================================================================================
-                        -  Build  -
+                        -  Admin  -
     =================================================================================================*/
 
 
-    public static EventBase getBuildEvent()
+    /**
+     * @return Event joined when an operator types /admin
+     */
+    public static EventBase getAdminEvent()
     {
-        return buildEvent;
+        return adminEvent;
     }
 
-    public static void registerBuildEvent(EventBase event)
+    /**
+     * Event joined when an operator types /admin, this should at least put them in spectator or creative and
+     * have a check with canJoin to see if they should have permission
+     * @param event event to be set as admin event
+     */
+    public static void registerAdminEvent(EventBase event)
     {
         registerEvent(event);
-        buildEvent = event;
+        adminEvent = event;
     }
 
 
@@ -373,7 +297,7 @@ public class EventTracker {
             Path eventFolder = dataFolderPath.resolve("Events");
 
             //write each row to its own folder yaml
-            registeredEvents.values().forEach((event) -> {
+            registeredEvents.forEach((event) -> {
                 NamespacedKey eventKey = event.eventKey();
                 Path eventFilePath = eventFolder.resolve(eventKey.getNamespace())
                         .resolve(eventKey.getKey())
@@ -428,7 +352,7 @@ public class EventTracker {
         Path eventFolder = dataFolderPath.resolve("Events");
 
         //write each row to its own folder yaml
-        registeredEvents.values().forEach((event) -> {
+        registeredEvents.forEach((event) -> {
             NamespacedKey eventKey = event.eventKey();
             Path eventFilePath = eventFolder.resolve(eventKey.getNamespace())
                     .resolve(eventKey.getKey())

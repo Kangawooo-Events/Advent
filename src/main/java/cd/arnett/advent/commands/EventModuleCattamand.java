@@ -2,7 +2,7 @@ package cd.arnett.advent.commands;
 
 import cd.arnett.advent.EventTracker;
 import cd.arnett.advent.events.EventBase;
-import cd.arnett.advent.events.modules.EventType;
+import cd.arnett.advent.events.modules.EventModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.mojang.brigadier.context.CommandContext;
@@ -14,7 +14,7 @@ import org.bukkit.NamespacedKey;
 /**
  * Extension of Cattamand which provides helpful method(s) for making event module control commands
  */
-public abstract class EventModuleCattamand<T extends EventType> extends Cattamand {
+public abstract class EventModuleCattamand<T extends EventModule> extends Cattamand {
 
     public EventBase getEvent(CommandContext<CommandSourceStack> context)
     {

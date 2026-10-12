@@ -4,7 +4,7 @@ import cd.arnett.advent.events.PlayerEventStatus;
 import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.data.PlayerStateModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
-import cd.arnett.advent.events.modules.EventType;
+import cd.arnett.advent.events.modules.EventModule;
 import cd.arnett.advent.events.modules.playerState.controls.ClearStatesCommand;
 import cd.arnett.advent.events.modules.playerState.controls.def.SetDefaultStateCommand;
 import cd.arnett.advent.events.modules.playerState.controls.def.resetDefaultStateCommand;
@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
-public interface SeparateStateModule extends EventType {
+public interface SeparateStateModule extends EventModule {
 
     String playerStatesKey = "PlayerStates";
     String defaultPlayerStateKey = "DefaultPlayerState";
@@ -75,10 +75,9 @@ public interface SeparateStateModule extends EventType {
     }
 
     @OnLeaveEvent
-    default void saveStateOnLeave(Player joined)
+    default void saveStateOnLeave(Player left)
     {
-        System.out.println("saving statedata");
-        getPlayerStates().put(joined.getUniqueId(), new PlayerState(joined));
+        getPlayerStates().put(left.getUniqueId(), new PlayerState(left));
     }
 
 

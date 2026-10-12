@@ -3,6 +3,7 @@ package cd.arnett.advent.events;
 import cd.arnett.advent.destinations.DestinationTeleportTask;
 import cd.arnett.advent.events.annotations.data.*;
 import cd.arnett.advent.events.modules.playerState.PlayerState;
+import cd.arnett.advent.events.modules.respawn.SpawnLocation;
 import org.apache.commons.lang3.function.TriFunction;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
@@ -57,6 +58,13 @@ public class AutomaticModuleDataManager {
         readingMethods.put(
                 LocationModuleData.class, (ann, yaml, key)
                         -> yaml.getLocation(key)
+        );
+        readingMethods.put(
+                SpawnLocationModuleData.class, (ann, yaml, key)
+                        -> new SpawnLocation(
+                                yaml.getLocation(key + ".location"),
+                                yaml.getBoolean(key + ".requires-block")
+                )
         );
         readingMethods.put(
                 UUIDModuleData.class, (ann, yaml, key)
@@ -133,6 +141,16 @@ public class AutomaticModuleDataManager {
         writingMethods.put(
                 LocationModuleData.class, (ann, yaml, key, value)
                         -> yaml.set(key, value)
+        );
+        writingMethods.put(
+                SpawnLocationModuleData.class, (ann, yaml, key, value)
+                        ->{
+                    var spawnLocation = (SpawnLocation) value;
+
+
+                        yaml.set(key + ".location", spawnLocation.location);
+                        yaml.set(key + ".requires-block", spawnLocation.requiresBlock);
+                }
         );
         writingMethods.put(
                 ItemStackArrayModuleData.class, (ann, yaml, key, value)

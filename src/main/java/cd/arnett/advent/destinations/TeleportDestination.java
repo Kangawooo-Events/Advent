@@ -38,6 +38,14 @@ public abstract class TeleportDestination {
         return this;
     }
 
+    public TeleportDestination initialize(Location spot) {
+        this.eventId = new NamespacedKey("null", "null");
+        this.tag = "";
+        this.location = spot;
+        this.id = UUID.randomUUID();
+        return this;
+    }
+
 
     public TeleportDestination initialize(YamlConfiguration yaml) {
         readFromYaml(yaml);

@@ -35,9 +35,9 @@ public class PlayerState {
     int air;
     int maxAir;
     int fireTicks;
+    int heldItemSlot;
     GameMode gamemode;
     int freezeTicks;
-    Location respawn;
     Collection<PotionEffect> effects = List.of();
 
     public PlayerState()
@@ -54,7 +54,7 @@ public class PlayerState {
         air = maxAir;
         fireTicks = 0;
         freezeTicks = 0;
-        respawn = null;
+        heldItemSlot = 0;
         effects = List.of();
         content = new ItemStack[0];
     }
@@ -83,8 +83,8 @@ public class PlayerState {
         freezeTicks = player.getFreezeTicks();
         level = player.getLevel();
         content = player.getInventory().getContents();
-        respawn = player.getRespawnLocation();
         gamemode = player.getGameMode();
+        heldItemSlot = player.getInventory().getHeldItemSlot();
     }
 
     public PlayerState(ConfigurationSection config)
@@ -98,9 +98,9 @@ public class PlayerState {
         level = config.getInt("level");
         air = config.getInt("air");
         maxAir = config.getInt("maxAir");
+        heldItemSlot = config.getInt("heldItemSlot");
         fireTicks = config.getInt("fireTicks");
         freezeTicks = config.getInt("freezeTicks");
-        respawn = config.getLocation("respawn");
         gamemode = GameMode.valueOf(config.getString("gamemode"));
         effects = (List<PotionEffect>)config.getList("effects");
         content = config.getList("content").toArray(ItemStack[]::new);
@@ -170,20 +170,7 @@ public class PlayerState {
         applicant.setFreezeTicks(freezeTicks);
         applicant.getInventory().setContents(content);
         applicant.setGameMode(gamemode);
-
-        if(respawn == null)
-        {
-            applicant.setRespawnLocation(null);
-        }
-        else
-        {
-            BlockData respawnBlockData = respawn.getBlock().getBlockData();
-            if(respawnBlockData instanceof Bed ||
-                    respawnBlockData instanceof RespawnAnchor anchor && anchor.getCharges() > 0)
-                applicant.setRespawnLocation(respawn);
-            else
-                applicant.setRespawnLocation(null);
-        }
+        applicant.getInventory().setHeldItemSlot(heldItemSlot);
 
 
         applicant.getPersistentDataContainer().set(
@@ -207,8 +194,8 @@ public class PlayerState {
         config.set("freezeTicks", freezeTicks);
         config.set("saturationRegen", saturationRegen);
         config.set("starvationRate", starvationRate);
+        config.set("heldItemSlot", heldItemSlot);
         config.set("level", level);
-        config.set("respawn", respawn);
         config.set("gamemode", gamemode.name());
         config.set("effects", new ArrayList<>(effects));
         config.set("content", Arrays.asList(content));
@@ -346,15 +333,6 @@ public class PlayerState {
 
     public PlayerState setFreezeTicks(int freezeTicks) {
         this.freezeTicks = freezeTicks;
-        return this;
-    }
-
-    public Location getRespawn() {
-        return respawn;
-    }
-
-    public PlayerState setRespawn(Location respawn) {
-        this.respawn = respawn;
         return this;
     }
 

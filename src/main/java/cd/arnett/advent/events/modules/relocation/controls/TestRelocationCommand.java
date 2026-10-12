@@ -1,5 +1,6 @@
 package cd.arnett.advent.events.modules.relocation.controls;
 
+import cd.arnett.advent.DestinationManager;
 import cd.arnett.advent.commands.EventModuleCattamand;
 import cd.arnett.advent.events.modules.relocation.RelocationModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -14,7 +15,7 @@ public class TestRelocationCommand extends EventModuleCattamand<RelocationModule
     @Override
     public int execute(CommandContext<CommandSourceStack> context, RelocationModule eventModule) throws CommandSyntaxException {
         var sender = ArgumentHelper.getPlayerSender(context);
-        eventModule.teleportToJoinDestination(sender);
+        DestinationManager.teleportToDestination(getEvent(context).eventKey(), "JOIN", sender);
         return 0;
     }
 

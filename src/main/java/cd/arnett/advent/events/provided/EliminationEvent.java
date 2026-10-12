@@ -22,10 +22,6 @@ public class EliminationEvent extends EventBase implements EliminationModule {
         return true;
     }
 
-    @Override
-    public boolean autoJoin() {
-        return false;
-    }
 
     @Override
     public boolean autoOpen() {

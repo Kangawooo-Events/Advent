@@ -8,7 +8,6 @@ import cd.arnett.advent.events.annotations.WriteYaml;
 import cd.arnett.advent.events.controls.*;
 import cd.arnett.advent.events.controls.registration.AddRegistrationCommand;
 import cd.arnett.advent.events.controls.registration.RemoveRegistrationCommand;
-import cd.arnett.advent.listeners.FreezeManager;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import com.destroystokyo.paper.profile.PlayerProfile;
@@ -21,8 +20,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -41,9 +39,8 @@ import java.util.function.BiConsumer;
  * Provides data about events of this type, by registering this type you can then create
  * events of this type through commands.
  */
-public abstract class EventBase {
+public abstract class EventBase implements Comparable<EventBase>{
 
-    private static final Logger log = LoggerFactory.getLogger(EventBase.class);
     HashMap<UUID, PlayerEventStatus> registeredPlayers = new HashMap<>();
     HashMap<Class<? extends Annotation>, HashMap<Method, Annotation>> callbacks = new HashMap<>();
     EnumMap<JoinTaskPriority, ArrayList<Method>> joinTasks = new EnumMap<>(JoinTaskPriority.class);
@@ -159,10 +156,10 @@ public abstract class EventBase {
 
 
 
-    //region Abstract properties
+    //region Properties
 
     /*=================================================================================================
-                        -  Abstract properties  -
+                        -  Properties  -
     =================================================================================================*/
 
 
@@ -181,7 +178,7 @@ public abstract class EventBase {
      * @return Whether players should automatically be set to join this event when they
      * join the server if they are registered and this event is running
      */
-    public abstract boolean autoJoin();
+    public boolean autoJoin() {return false;}
 
     /**
      * @return Should this event automatically start when it is registered with the EventTracker
@@ -209,8 +206,17 @@ public abstract class EventBase {
      */
     public abstract boolean preventLeavingWhilePlaying();
 
+    /**
+     * @return Priority for what event to join when doing a generic join. Higher number has higher priority.
+     * Defaults to 10 in EventBase
+     */
+    public int priority()
+    {
+        return 10;
+    }
 
     //endregion
+
 
 
     //region Join / Leave
@@ -218,7 +224,6 @@ public abstract class EventBase {
     /*=================================================================================================
                         -  Join / Leave  -
     =================================================================================================*/
-
 
     /**
      * Makes a player join the event if registered (Absent -> Playing)
@@ -280,7 +285,7 @@ public abstract class EventBase {
 
     /**
      * Called when the join task fails
-     * @param player player who failed to join
+     * @param player Player who failed to join
      */
     protected void failJoinFallback(Player player)
     {
@@ -289,7 +294,7 @@ public abstract class EventBase {
 
     /**
      * Processes the join tasks for a given player recursively
-     * @param player player to process
+     * @param player Player to process
      * @return Future to be completed with a true if successfully joining or false with a failed joining
      */
     final CompletableFuture<Boolean> processJoinTasks(Player player)
@@ -310,7 +315,7 @@ public abstract class EventBase {
 
     /**
      * Processes the join tasks for a given player recursively
-     * @param player player to process
+     * @param player Player to process
      * @param priorityIterator iterator through join task priorities (gotten by joinTasks.entrySet().iterator())
      * @param methodIterator iterator through the methods in the join task priorities
      * @param processFuture Future to be completed with a true if successfully joining or false with a failed joining
@@ -383,10 +388,8 @@ public abstract class EventBase {
     public final void leave(Player player)
     {
         var id = player.getUniqueId();
-        System.out.println("Leaving event");
         if(isPlaying(id))
         {
-            System.out.println("Leaving event frfr");
             //clear tracked event
             EventTracker.clearPlayingEvent(id);
             registeredPlayers.put(id, PlayerEventStatus.ABSENT);
@@ -549,14 +552,14 @@ public abstract class EventBase {
 
     /**
      * Called when a player joins an event
-     * @param player player who joined
+     * @param player Player who joined
      */
     @OnJoinEvent
     public abstract void onJoinEvent(Player player);
 
     /**
      * Called when a player leaves an event
-     * @param player player who left
+     * @param player Player who left
      */
     @OnLeaveEvent
     public abstract void onLeaveEvent(Player player);
@@ -1153,6 +1156,20 @@ public abstract class EventBase {
                 isActive ?  "<bold><green>ACTIVE<reset>" : "<bold><red>INACTIVE<reset>");
 
         return sectionMap;
+    }
+
+    //endregion
+
+
+    //region Comparability
+
+    /*=================================================================================================
+                        -  Comparability  -
+    =================================================================================================*/
+
+    @Override
+    public int compareTo(@NotNull EventBase o) {
+        return Integer.compare(priority(), o.priority());
     }
 
     //endregion

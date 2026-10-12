@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Marks PUBLIC methods as one which will be called when a player leaves the event
  * (they are already set as absent by the time this is called). <br>
- * Method MUST have ONE Player Parameter for the palyer leaving
+ * Method MUST have ONE EventLeaveData Parameter for data related to the player leaving
  */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface OnLeaveEvent { }

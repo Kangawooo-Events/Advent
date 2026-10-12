@@ -4,7 +4,7 @@ import cd.arnett.advent.events.annotations.ModuleDataProvider;
 import cd.arnett.advent.events.annotations.OnInitialize;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDModuleData;
-import cd.arnett.advent.events.modules.EventType;
+import cd.arnett.advent.events.modules.EventModule;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.entity.Player;
 
@@ -13,7 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
-public interface TeamsModule extends EventType {
+public interface TeamsModule extends EventModule {
 
     String teamNameSuffix =  "-TeamPlayers";
 

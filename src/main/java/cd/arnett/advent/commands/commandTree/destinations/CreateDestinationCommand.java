@@ -31,8 +31,9 @@ public class CreateDestinationCommand extends Cattamand {
                         "tag",
                         StringArgumentType.string(),
                         Map.of(
-                                "JOIN", "Tag for identification, can be any word",
-                                "POSTEVENT", "Tag for identification, can be any word"
+                                "JOIN", "Tag for where players joining the event will be sent",
+                                "ADMIN", "Extra tag for where \"/admin <event>\" sends players instead of just sending them to join location",
+                                "RESPAWN", "Tag for where players in the event will respawn at if no spawn location is set"
                         )
                 ),
                 new Cattarameter(

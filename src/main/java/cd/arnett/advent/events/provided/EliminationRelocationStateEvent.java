@@ -24,11 +24,6 @@ public class EliminationRelocationStateEvent extends EventBase implements Elimin
     }
 
     @Override
-    public boolean autoJoin() {
-        return false;
-    }
-
-    @Override
     public boolean autoOpen() {
         return false;
     }

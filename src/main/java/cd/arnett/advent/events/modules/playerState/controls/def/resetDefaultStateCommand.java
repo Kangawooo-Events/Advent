@@ -1,8 +1,6 @@
 package cd.arnett.advent.events.modules.playerState.controls.def;
 
 import cd.arnett.advent.commands.EventModuleCattamand;
-import cd.arnett.advent.events.modules.EventType;
-import cd.arnett.advent.events.modules.playerState.PlayerState;
 import cd.arnett.advent.events.modules.playerState.SeparateStateModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;

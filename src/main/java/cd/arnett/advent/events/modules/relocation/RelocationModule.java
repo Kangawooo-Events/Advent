@@ -5,20 +5,24 @@ import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.data.DestinationTeleportTaskModuleData;
 import cd.arnett.advent.events.annotations.data.LocationModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDHashMapModuleData;
-import cd.arnett.advent.events.modules.EventType;
+import cd.arnett.advent.events.modules.EventModule;
 import cd.arnett.advent.events.modules.relocation.controls.ReloadRelocationCommand;
 import cd.arnett.advent.events.modules.relocation.controls.TestRelocationCommand;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
+import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public interface RelocationModule extends EventType {
+public interface RelocationModule extends EventModule {
+
+    HashMap<UUID, NamespacedKey> preTeleportedPlayers = new HashMap<>();
 
 
     //region Module Data
@@ -27,10 +31,12 @@ public interface RelocationModule extends EventType {
                         -  Module Data  -
     =================================================================================================*/
 
+    String fileName = "Relocation";
     String joinTeleportTaskKey = "JoinTask";
     String eventLocationsKey = "eventLocations";
+    String eventRespawnsKey = "eventRespawns";
 
-    @ModuleDataProvider(key = joinTeleportTaskKey, fileBasename = "Relocation")
+    @ModuleDataProvider(key = joinTeleportTaskKey, fileBasename = fileName)
     @DestinationTeleportTaskModuleData
     default DestinationTeleportTask joinDestinationTaskData()
     {
@@ -40,7 +46,7 @@ public interface RelocationModule extends EventType {
     }
 
 
-    @ModuleDataProvider(key = eventLocationsKey, fileBasename = "Relocation")
+    @ModuleDataProvider(key = eventLocationsKey, fileBasename = fileName)
     @UUIDHashMapModuleData(type = LocationModuleData.class)
     default HashMap<UUID, Location> eventLocationsData()
     {
@@ -106,7 +112,10 @@ public interface RelocationModule extends EventType {
      */
     default Location getEventLocation(Player player)
     {
-        return getEventLocation(player.getUniqueId());
+        if(saveEventLocation() && hasEventLocation(player))
+            return getEventLocation(player.getUniqueId());
+        else
+            return getJoinTeleportTask().popTeleportDestination();
     }
 
     /**
@@ -154,29 +163,37 @@ public interface RelocationModule extends EventType {
     @OnJoinEvent(priority = JoinTaskPriority.EARLY)
     default CompletableFuture<Boolean> teleportOnJoin(Player joined)
     {
+        var location = getEventLocation(joined);
+        var teleportFuture = new CompletableFuture<Boolean>();
 
-        //teleport to event location
-        if(saveEventLocation() && hasEventLocation(joined))
+        //eject anything riding the player
+        if(!joined.getPassengers().isEmpty())
+            joined.eject();
+
+
+        //if they prejoined this event then don't teleport them
+        if(preTeleportedPlayers.getOrDefault(joined.getUniqueId(), null) == getEvent().eventKey())
         {
-            var fallbackFuture = new CompletableFuture<Boolean>();
-            var location = getEventLocation(joined);
-            var future = joined.teleportAsync(location);
-            future.thenAccept(result -> {
-                if (!result)
-                {
-                    fallbackFuture.complete(joined.teleport(location));
-                }
-                else
-                {
-                    fallbackFuture.complete(true);
-                }
-            });
-            return fallbackFuture;
+            teleportFuture.complete(true);
+            return teleportFuture;
         }
 
-        //no event location so to a join destination
+        //teleport to event location
+        var future = joined.teleportAsync(location);
+        future.thenAccept(result -> {
+            if (!result)
+            {
+                teleportFuture.complete(joined.teleport(location));
+            }
+            else
+            {
+                teleportFuture.complete(true);
+            }
+        });
 
-        return teleportToJoinDestination(joined);
+
+        preTeleportedPlayers.remove(joined.getUniqueId());
+        return teleportFuture;
     }
 
     @OnLeaveEvent
@@ -184,25 +201,6 @@ public interface RelocationModule extends EventType {
     {
         //save event location
         getEventLocations().put(left.getUniqueId(), left.getLocation());
-    }
-
-    default CompletableFuture<Boolean> teleportToJoinDestination(Player player)
-    {
-        var fallbackFuture = new CompletableFuture<Boolean>();
-        Location destination = getJoinTeleportTask().popTeleportDestination();
-        player.teleportAsync(destination).thenAccept(result -> {
-            if (!result)
-            {
-                fallbackFuture.complete(player.teleport(destination));
-
-            }
-            else
-            {
-                fallbackFuture.complete(true);
-            }
-        });
-
-        return fallbackFuture;
     }
 
 
@@ -233,10 +231,10 @@ public interface RelocationModule extends EventType {
     //endregion
 
 
-    //region Commands
+    //region Controls
 
     /*=================================================================================================
-                        -  Commands  -
+                        -  Controls  -
     =================================================================================================*/
 
 
@@ -254,6 +252,40 @@ public interface RelocationModule extends EventType {
 
     //endregion
 
+
+    //region Behaviours
+
+    /*=================================================================================================
+                        -  Behaviours  -
+    =================================================================================================*/
+
+
+
+    /**
+     * Used to set spawn location on joining without teleporting on a PlayerSpawnLocationEvent
+     * @param joined Player who joined
+     * @param e PlayerSpawnLocationEvent event
+     * @return was it a success
+     */
+    default boolean preRelocateForSpawnEvent(Player joined, PlayerSpawnLocationEvent e)
+    {
+        var location = getEventLocation(joined.getUniqueId());
+
+        //set spawn location for pre-joining
+        if(location == null)
+        {
+            return false;
+        }
+        else
+        {
+            e.setSpawnLocation(location);
+            preTeleportedPlayers.put(joined.getUniqueId(), getEvent().eventKey());
+            return true;
+        }
+    }
+
+
+    //endregion
 
 
 }

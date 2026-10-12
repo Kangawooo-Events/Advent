@@ -22,15 +22,7 @@ public class TeleportDestinationCommand extends Cattamand {
         String tag = context.getArgument("tag", String.class);
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
 
-        int destinationCount = DestinationManager.teleportToDestination(eventId, tag, targets);
-
-        if(destinationCount > 0)
-        {
-            ArgumentHelper.sendSenderMiniMessage(
-                    context, "<green> Found " + destinationCount + " Destinations!"
-            );
-        }
-        else
+        if(DestinationManager.teleportToDestination(eventId, tag, targets).isEmpty())
         {
             ArgumentHelper.sendSenderMiniMessage(context, "<red> Failed to find Destination!");
         }

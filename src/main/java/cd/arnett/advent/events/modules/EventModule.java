@@ -3,7 +3,7 @@ package cd.arnett.advent.events.modules;
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.events.EventBase;
 
-public interface EventType {
+public interface EventModule {
 
     /**
      * @return The EventBase this interface should be assigned to

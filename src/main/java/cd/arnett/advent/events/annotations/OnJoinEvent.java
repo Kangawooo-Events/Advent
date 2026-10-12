@@ -7,7 +7,7 @@ import java.lang.annotation.RetentionPolicy;
  * Marks PUBLIC methods as one which will be called when a player joins the event (registration is seperate).
  * This is called specifically when the player has already left the previous event and has not yet been set
  * to be playing in the event they are joining, I.E. when they are in limbo<br>
- * Method MUST have ONE Player Parameter for the palyer joining
+ * Method MUST have ONE EventJoinData Parameter for data related to the player joining
  */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface OnJoinEvent {

@@ -19,6 +19,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 
 /**
@@ -182,15 +183,10 @@ public class DestinationManager {
      * @param entities entities to be teleported
      * @return Number of destinations found, Teleports *may still fail but there were targets to teleport to
      */
-    public static int teleportToDestination(NamespacedKey eventID, String destinationTag, Entity... entities)
+    public static List<CompletableFuture<Boolean>> teleportToDestination(NamespacedKey eventID, String destinationTag, Entity... entities)
     {
         var task = new DestinationTeleportTask(eventID, destinationTag);
-        task.teleportAsync(entities).forEach(future -> {
-            future.thenAccept(boo -> {
-                System.out.println("TELEPORY SUCCESS " + boo);
-            });
-        });
-        return task.getDestinationCount();
+        return task.teleportAsync(entities);
     }
 
 
@@ -206,7 +202,7 @@ public class DestinationManager {
      * @param entities Entities to be teleported
      * @return Number of destinations found, Teleports *may still fail but there were targets to teleport to
      */
-    public static int teleportToDestination(NamespacedKey eventID, String destinationTag, List<? extends Entity> entities)
+    public static List<CompletableFuture<Boolean>> teleportToDestination(NamespacedKey eventID, String destinationTag, List<? extends Entity> entities)
     {
         return teleportToDestination(eventID, destinationTag, entities.toArray(Entity[]::new));
     }

@@ -143,12 +143,11 @@ public class DestinationTeleportTask {
 
     public CompletableFuture<Boolean> teleportAsync(Entity entity)
     {
-        System.out.println("Gpnna tp group PLAYER");
         return entity.teleportAsync(popTeleportDestination(), PlayerTeleportEvent.TeleportCause.PLUGIN);
     }
 
     /**
-     * Pops a teleport destination from capacities
+     * Pops a teleport destination from capacities while taking up a capacity slot
      * @return Teleport location
      */
     public Location popTeleportDestination()
@@ -163,7 +162,6 @@ public class DestinationTeleportTask {
             roll -= entry.getValue();
             if(roll <= 0)
             {
-                System.out.println("TELEPORTATION PLAYER");
                 //teleport and decrement capacity
                 var dest = entry.getKey().getSafeDestination();
                 modifiableDestinationCapacities.put(entry.getKey(), entry.getValue() - 1);
@@ -185,13 +183,60 @@ public class DestinationTeleportTask {
             //this is only true if the loop can't find a spot
             if(modifiableDestinationCapacities.isEmpty())
             {
-                Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Like at all :(");
+                Advent.logger.warning("No " + tag + " destination has been set in " + eventId + " to teleport to");
                 var future = new CompletableFuture<Boolean>();
                 future.complete(false);
                 return null;
             }
 
-            Advent.logger.warning("NOWHERE TO TELEPORT PLAYERS, Sending to capped destination");
+            Advent.logger.warning("No uncapped destination to send overflow of players, Sending to capped destination");
+            var dest = modifiableDestinationCapacities.keySet().iterator().next().getDestination();
+            return dest;
+        }
+    }
+
+    /**
+     * Gets a teleport destination from capacities
+     * @return Teleport location
+     */
+    public Location getTeleportDestination()
+    {
+        int rollSize = Math.max(totalCapacity.get(), 1);
+
+        //batch out teleports
+        var rand = new Random();
+        int roll = rand.nextInt(rollSize);
+
+        for(var entry : modifiableDestinationCapacities.entrySet()) {
+            roll -= entry.getValue();
+            if(roll <= 0)
+            {
+                //teleport and decrement capacity
+                var dest = entry.getKey().getSafeDestination();
+                return dest;
+            }
+        }
+
+        //roll greater than capacity
+        if(!uncappedDestinations.isEmpty())
+        {
+            var dest = uncappedDestinations.get(
+                    rand.nextInt(uncappedDestinations.size())
+            ).getSafeDestination();
+            return dest;
+        }
+        else
+        {
+            //this is only true if the loop can't find a spot
+            if(modifiableDestinationCapacities.isEmpty())
+            {
+                Advent.logger.warning("No " + tag + " destination has been set in " + eventId + " to teleport to");
+                var future = new CompletableFuture<Boolean>();
+                future.complete(false);
+                return null;
+            }
+
+            Advent.logger.warning("No uncapped destination to send overflow of players, Sending to capped destination");
             var dest = modifiableDestinationCapacities.keySet().iterator().next().getDestination();
             return dest;
         }
