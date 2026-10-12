@@ -15,13 +15,11 @@ logs/
 *.iml
 *.iws
 *.ipr
-out/
 
 # Eclipse
 .classpath
 .project
 .settings/
-bin/
 
 # Visual Studio Code
 .vscode/
@@ -29,3 +27,16 @@ bin/
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+# --- Compilation & Build Outputs ---
+target/
+
+# --- IntelliJ IDEA Settings ---
+# Ignore local user preferences but keep compiler mappings
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries/
+.idea/vcs.xml
+.idea/jsLibraryMappings.xml
+.idea/dataSources.xml
+.idea/mysql.xml
