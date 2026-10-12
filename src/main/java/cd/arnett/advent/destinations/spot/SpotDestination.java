@@ -68,7 +68,7 @@ public class SpotDestination extends TeleportDestination {
 
     @Override
     public boolean isWithinBounds(Location spot) {
-        return spot.distance(location) < 1;
+        return spot.getWorld() == location.getWorld() && spot.distance(location) < 1;
     }
 
 

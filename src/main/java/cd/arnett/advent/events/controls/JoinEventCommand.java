@@ -22,6 +22,15 @@ public class JoinEventCommand extends EventBaseCattamand {
     public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
         Player sender = ArgumentHelper.getPlayerSender(context);
 
+        if(!event.isActive())
+        {
+            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>That Event is Not Open");
+        }
+        if(event.requiresRegistration() && !event.isRegistered(sender.getUniqueId()))
+        {
+            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>You are not Registered for this event");
+        }
+
         if(!event.canJoin(sender))
         {
             ArgumentHelper.sendSenderMiniMessage(
@@ -45,36 +54,55 @@ public class JoinEventCommand extends EventBaseCattamand {
     public int groupExecute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
 
-        AtomicInteger joinFailures = new AtomicInteger(0);
-
         EventBase event = getEvent(context);
         ArrayList<CompletableFuture<Boolean>> teleportationTasks = new ArrayList<>();
 
-        for (Player target : targets) {
-            var task = event.join(target);
-            task.thenAcceptAsync(result -> {
-                if(!result)
-                {
-                    joinFailures.incrementAndGet();
-                }
-            });
-            teleportationTasks.add(task);
+        if(!event.isActive())
+        {
+            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>That Event is Not Open");
         }
 
-        CompletableFuture.allOf(teleportationTasks.toArray(CompletableFuture[]::new)).thenAccept(
+
+        for (Player target : targets) {
+            teleportationTasks.add(event.join(target));
+        }
+
+        var collectiveFuture = CompletableFuture.allOf(teleportationTasks.toArray(CompletableFuture[]::new));
+        collectiveFuture.thenAccept(
                 (a) -> {
-                    if(joinFailures.get() > 0)
+
+                    AtomicInteger joinFailures = new AtomicInteger(0);
+                    boolean allSuccess = teleportationTasks.stream().map(CompletableFuture::join).allMatch(
+                            result -> {
+                                if(result) return true;
+                                else
+                                {
+                                    joinFailures.incrementAndGet();
+                                    return false;
+                                }
+                            }
+                    );
+
+                    if(allSuccess)
                     {
-                        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98>"
-                                + "Player(s) All players <bold>Joined</bold> Event "
+                        ArgumentHelper.sendSenderMiniMessage(context,
+                                "<color:#5cff98>All Player(s) joined Event "
                                 + event.eventKey().toString());
                     }
                     else
                     {
-                        ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>"
-                                + joinFailures.get()
-                                + " Player(s) were able to Join Event "
-                                + event.eventKey().toString());
+                        ArgumentHelper.sendSenderMiniMessage(context,
+                                "<color:#ff597a>"
+                                        + joinFailures.get()
+                                        + " Player(s) <bold>Failed Joining</bold> Event "
+                                        + event.eventKey().toString()
+                                        + "\nMake sure event is <bold>Open</bold>"
+                                        + (
+                                                event.requiresRegistration() ?
+                                                        " and Players are <bold>Registered</bold>" :
+                                                        ""
+                                        )
+                        );
                     }
                 }
         );
