@@ -12,7 +12,7 @@ public class TestEvent extends EventBase {
     public NamespacedKey eventKey() {
         return new NamespacedKey(Advent.singleton, "testevent");
     }
-
+ 
     @Override
     public boolean autoJoin() {
         return false;
