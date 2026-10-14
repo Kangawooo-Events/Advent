@@ -13,8 +13,12 @@ import java.util.List;
 
 public class SaveEventCommand extends EventBaseCattamand {
 
+    public SaveEventCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         EventTracker.saveSingleEvent(event);
 
         ArgumentHelper.sendSenderMiniMessage(context, "<bold><green>Saved Event " + event.eventKey().toString());

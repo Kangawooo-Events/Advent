@@ -16,13 +16,18 @@ import java.util.Collection;
 import java.util.List;
 
 public class ClearStatesCommand extends EventModuleCattamand<SeparateStateModule> {
+
+    public ClearStatesCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, SeparateStateModule eventModule) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
 
         Collection<PlayerProfile> targets = ArgumentHelper.getPlayerProfilesFromArgs("players", context);
 
         targets.forEach(target -> {
-            eventModule.clearPlayerState(target.getId());
+            module.clearPlayerState(target.getId());
         });
 
         return 0;
@@ -37,8 +42,7 @@ public class ClearStatesCommand extends EventModuleCattamand<SeparateStateModule
                         (ctx) ->
                         {
                             try {
-                                EventBase base = getEvent(ctx);
-                                SeparateStateModule module = (SeparateStateModule) base;
+                                SeparateStateModule module = (SeparateStateModule) event;
                                 return module.getPlayerStates().entrySet().stream().map(
                                         entry -> Bukkit.createProfile(entry.getKey()).getName()
                                 ).toList();

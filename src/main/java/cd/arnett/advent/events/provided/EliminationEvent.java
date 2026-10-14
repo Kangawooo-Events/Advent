@@ -17,11 +17,6 @@ public class EliminationEvent extends EventBase implements EliminationModule {
         return new NamespacedKey(Advent.singleton, "elimevent");
     }
 
-    @Override
-    public boolean requiresRegistration() {
-        return true;
-    }
-
 
     @Override
     public boolean autoOpen() {

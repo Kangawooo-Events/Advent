@@ -2,7 +2,6 @@ package cd.arnett.advent;
 
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.types.LobbyEventBase;
-import com.google.common.collect.TreeMultiset;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -58,7 +57,7 @@ public class EventTracker {
 
         for(var entry : registeredEvents)
         {
-            if(entry.isRegistered(playerId)) events.add(entry);
+            if(entry.isEventPlayer(playerId)) events.add(entry);
         }
 
         return events;

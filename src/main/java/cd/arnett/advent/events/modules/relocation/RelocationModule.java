@@ -243,8 +243,8 @@ public interface RelocationModule extends EventModule {
     {
         return new LiteralCattamand("relocation",
                 List.of(
-                        new ReloadRelocationCommand(),
-                        new TestRelocationCommand()
+                        new ReloadRelocationCommand(getEvent()),
+                        new TestRelocationCommand(getEvent())
                 )
         );
     }

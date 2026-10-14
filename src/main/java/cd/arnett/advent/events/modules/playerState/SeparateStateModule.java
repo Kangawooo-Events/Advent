@@ -48,7 +48,7 @@ public interface SeparateStateModule extends EventModule {
 
     default void clearPlayerState(UUID id)
     {
-        if(getEvent().isRegistered(id, PlayerEventStatus.PLAYING))
+        if(getEvent().isEventPlayer(id, PlayerEventStatus.PLAYING))
         {
             getEvent().leave(Bukkit.getPlayer(id));
         }
@@ -131,10 +131,10 @@ public interface SeparateStateModule extends EventModule {
     {
         return new LiteralCattamand("states",
                 List.of(
-                        new ClearStatesCommand(),
+                        new ClearStatesCommand(getEvent()),
                         new LiteralCattamand("default", List.of(
-                                new resetDefaultStateCommand(),
-                                new SetDefaultStateCommand()
+                                new resetDefaultStateCommand(getEvent()),
+                                new SetDefaultStateCommand(getEvent())
                         ))
                 )
         ) ;

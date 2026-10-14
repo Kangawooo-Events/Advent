@@ -2,6 +2,7 @@ package cd.arnett.advent.events.modules.relocation.controls;
 
 import cd.arnett.advent.DestinationManager;
 import cd.arnett.advent.commands.EventModuleCattamand;
+import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.modules.relocation.RelocationModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
@@ -12,10 +13,15 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import java.util.List;
 
 public class TestRelocationCommand extends EventModuleCattamand<RelocationModule> {
+
+    public TestRelocationCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, RelocationModule eventModule) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         var sender = ArgumentHelper.getPlayerSender(context);
-        DestinationManager.teleportToDestination(getEvent(context).eventKey(), "JOIN", sender);
+        DestinationManager.teleportToDestination(event.eventKey(), "JOIN", sender);
         return 0;
     }
 

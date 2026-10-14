@@ -14,11 +14,6 @@ public class TestEvent extends EventBase {
     }
 
     @Override
-    public boolean requiresRegistration() {
-        return true;
-    }
-
-    @Override
     public boolean autoJoin() {
         return false;
     }

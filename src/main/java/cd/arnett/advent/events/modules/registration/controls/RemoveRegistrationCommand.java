@@ -1,7 +1,9 @@
-package cd.arnett.advent.events.controls.registration;
+package cd.arnett.advent.events.modules.registration.controls;
 
 import cd.arnett.advent.commands.EventBaseCattamand;
+import cd.arnett.advent.commands.EventModuleCattamand;
 import cd.arnett.advent.events.EventBase;
+import cd.arnett.advent.events.modules.registration.RegistrationModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import com.destroystokyo.paper.profile.PlayerProfile;
@@ -13,12 +15,16 @@ import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import java.util.Collection;
 import java.util.List;
 
-public class AddRegistrationCommand extends EventBaseCattamand {
+public class RemoveRegistrationCommand extends EventModuleCattamand<RegistrationModule> {
+    public RemoveRegistrationCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         Collection<PlayerProfile> targets = ArgumentHelper.getPlayerProfilesFromArgs("target", context);
-        targets.forEach(target -> event.register(target.getId()));
-        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98> Registered Player(s)");
+        ArgumentHelper.sendSenderMiniMessage(context, "<color:#5cff98> Revoked Player(s)");
+        targets.forEach(target -> module.revokeRegistration(target.getId()));
 
         return 0;
     }
@@ -35,7 +41,7 @@ public class AddRegistrationCommand extends EventBaseCattamand {
 
     @Override
     public String getName() {
-        return "add";
+        return "remove";
     }
 
     @Override

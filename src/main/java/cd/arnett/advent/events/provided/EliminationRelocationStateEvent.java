@@ -19,11 +19,6 @@ public class EliminationRelocationStateEvent extends EventBase implements Elimin
     }
 
     @Override
-    public boolean requiresRegistration() {
-        return true;
-    }
-
-    @Override
     public boolean autoOpen() {
         return false;
     }

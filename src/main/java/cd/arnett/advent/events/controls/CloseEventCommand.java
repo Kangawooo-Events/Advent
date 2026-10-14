@@ -11,8 +11,13 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import java.util.List;
 
 public class CloseEventCommand extends EventBaseCattamand {
+
+    public CloseEventCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         if(!event.isActive())
         {
             ArgumentHelper.sendSenderMiniMessage(context, "<red>The event has already been closed!");

@@ -8,11 +8,6 @@ import cd.arnett.advent.events.modules.respawn.RespawnModule;
 public abstract class LobbyEventBase extends EventBase implements RelocationModule, SeparateStateModule, RespawnModule {
 
     @Override
-    public boolean requiresRegistration() {
-        return false;
-    }
-
-    @Override
     public final boolean autoJoin() {
         return true;
     }

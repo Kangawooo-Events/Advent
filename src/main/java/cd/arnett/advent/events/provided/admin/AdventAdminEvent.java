@@ -15,11 +15,6 @@ public class AdventAdminEvent extends EventBase implements SeparateStateModule {
     }
 
     @Override
-    public boolean requiresRegistration() {
-        return false;
-    }
-
-    @Override
     public boolean autoOpen() {
         return true;
     }

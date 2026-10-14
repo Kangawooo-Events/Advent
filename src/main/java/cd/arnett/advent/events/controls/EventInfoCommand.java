@@ -14,8 +14,13 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import java.util.List;
 
 public class EventInfoCommand extends EventBaseCattamand {
+
+    public EventInfoCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         StringBuilder output = new StringBuilder("\n<bold><color:#ff597a>")
                 .append(event.eventKey().toString()).append(" Info: </color></bold>");
 
@@ -38,7 +43,7 @@ public class EventInfoCommand extends EventBaseCattamand {
         return 0;
     }
 
-    public int executeWithSection(CommandContext<CommandSourceStack> context, EventBase event, String sectionKey) throws CommandSyntaxException {
+    public int executeWithSection(CommandContext<CommandSourceStack> context, String sectionKey) throws CommandSyntaxException {
         StringBuilder output = new StringBuilder("<bold><color:#ff597a>")
                 .append(event.eventKey().toString()).append("</color></bold>");
 
@@ -66,10 +71,10 @@ public class EventInfoCommand extends EventBaseCattamand {
                 new Cattarameter(
                         "section",
                         StringArgumentType.string(),
-                        (ctx -> getEvent(ctx).getEventInfo()
+                        (ctx -> event.getEventInfo()
                                 .rowKeySet().stream().map(ann -> ann.name().toLowerCase()).toList()),
                         (ctx) ->
-                                executeWithSection(ctx, getEvent(ctx), ctx.getArgument("section", String.class))
+                                executeWithSection(ctx, ctx.getArgument("section", String.class))
                 ));
     }
 

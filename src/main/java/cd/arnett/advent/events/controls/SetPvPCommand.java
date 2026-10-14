@@ -12,8 +12,13 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import java.util.List;
 
 public class SetPvPCommand extends EventBaseCattamand {
+
+    public SetPvPCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         boolean pvp = context.getArgument("dopvp", boolean.class);
         if(pvp)
             event.allowPVP();

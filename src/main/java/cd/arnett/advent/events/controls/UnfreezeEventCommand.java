@@ -12,6 +12,10 @@ import java.util.List;
 
 public class UnfreezeEventCommand extends EventBaseCattamand {
 
+    public UnfreezeEventCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
     public List<? extends Cattarameter> getArguments() {
         return List.of();
@@ -33,7 +37,7 @@ public class UnfreezeEventCommand extends EventBaseCattamand {
     }
 
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         event.unfreeze();
 
 

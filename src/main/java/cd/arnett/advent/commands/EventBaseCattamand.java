@@ -13,16 +13,10 @@ import org.bukkit.NamespacedKey;
  */
 public abstract class EventBaseCattamand extends Cattamand {
 
-    public EventBase getEvent(CommandContext<CommandSourceStack> context)
+    protected EventBase event;
+
+    public  EventBaseCattamand(EventBase base)
     {
-        return EventTracker.getEvent(context.getLastChild().getArgument("event", NamespacedKey.class));
+        this.event = base;
     }
-
-    @Override
-    public final int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        EventBase event = getEvent(context);
-        return execute(context, event);
-    }
-
-    public abstract int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException;
 }

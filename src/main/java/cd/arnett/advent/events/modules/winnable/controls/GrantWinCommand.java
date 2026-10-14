@@ -18,14 +18,17 @@ import java.util.UUID;
 
 public class GrantWinCommand extends EventModuleCattamand<WinnableModule> {
 
+    public GrantWinCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, WinnableModule eventModule) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         Collection<PlayerProfile> players = ArgumentHelper.getPlayerProfilesFromArgs("players", context);
 
-        eventModule.grantWin(players.stream().map(PlayerProfile::getId).toArray(UUID[]::new));
+        module.grantWin(players.stream().map(PlayerProfile::getId).toArray(UUID[]::new));
 
-        ArgumentHelper.sendSenderMiniMessage(context, "<green> wins Granted"
-                + (getEvent(context).requiresRegistration() ? " to Registered player(s)" : ""));
+        ArgumentHelper.sendSenderMiniMessage(context, "<green> wins Granted");
         return 0;
     }
 
@@ -37,9 +40,8 @@ public class GrantWinCommand extends EventModuleCattamand<WinnableModule> {
                         ArgumentTypes.playerProfiles(),
                         (ctx) ->
                         {
-                            EventBase base = getEvent(ctx);
-                            WinnableModule module = (WinnableModule) base;
-                            return base.getRegisteredPlayers().stream()
+                            WinnableModule module = (WinnableModule) event;
+                            return event.getEventPlayers().stream()
                                     .filter(
                                             id -> !module.hasPlayerWon(id)
                                     ).map(

@@ -115,7 +115,7 @@ public interface WinnableModule extends EventModule {
         var event = getEvent();
         for(UUID id : winningPlayers)
         {
-            if(event.requiresRegistration() && !event.isRegistered(id))
+            if(!event.isEventPlayer(id))
             {
                 Advent.logger.warning("Attempted Granting win to player who is not registered");
                 continue;
@@ -138,7 +138,7 @@ public interface WinnableModule extends EventModule {
         var event = getEvent();
         for(UUID id : revokedPlayers)
         {
-            if(event.requiresRegistration() && !event.isRegistered(id))
+            if(!event.isEventPlayer(id))
             {
                 continue;
             }
@@ -215,8 +215,8 @@ public interface WinnableModule extends EventModule {
         return new LiteralCattamand(
                 "wins",
                 List.of(
-                        new GrantWinCommand(),
-                        new RevokeWinCommand()
+                        new GrantWinCommand(getEvent()),
+                        new RevokeWinCommand(getEvent())
                 )
         );
     }

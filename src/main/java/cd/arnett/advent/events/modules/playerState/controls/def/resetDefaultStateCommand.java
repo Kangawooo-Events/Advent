@@ -1,6 +1,7 @@
 package cd.arnett.advent.events.modules.playerState.controls.def;
 
 import cd.arnett.advent.commands.EventModuleCattamand;
+import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.modules.playerState.SeparateStateModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
@@ -11,6 +12,10 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import java.util.List;
 
 public class resetDefaultStateCommand extends EventModuleCattamand<SeparateStateModule> {
+
+    public resetDefaultStateCommand(EventBase base) {
+        super(base);
+    }
 
     @Override
     public List<? extends Cattarameter> getArguments() {
@@ -33,9 +38,9 @@ public class resetDefaultStateCommand extends EventModuleCattamand<SeparateState
     }
 
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, SeparateStateModule eventModule) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         var player = ArgumentHelper.getPlayerSender(context);
-        eventModule.setModuleData(SeparateStateModule.defaultPlayerStateKey, eventModule.defaultJoinState());
+        module.setModuleData(SeparateStateModule.defaultPlayerStateKey, module.defaultJoinState());
         return 0;
     }
 }

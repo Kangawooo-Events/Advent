@@ -1,6 +1,7 @@
 package cd.arnett.advent.events.modules.winnable.controls;
 
 import cd.arnett.advent.commands.EventModuleCattamand;
+import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.modules.winnable.WinnableModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
@@ -17,14 +18,17 @@ import java.util.UUID;
 
 public class RevokeWinCommand extends EventModuleCattamand<WinnableModule> {
 
+    public RevokeWinCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, WinnableModule eventModule) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         Collection<PlayerProfile> players = ArgumentHelper.getPlayerProfilesFromArgs("players", context);
 
-        eventModule.grantWin(players.stream().map(PlayerProfile::getId).toArray(UUID[]::new));
+        module.grantWin(players.stream().map(PlayerProfile::getId).toArray(UUID[]::new));
 
-        ArgumentHelper.sendSenderMiniMessage(context, "<green> Revoked wins from "
-                + (getEvent(context).requiresRegistration() ? " Registered Player(s)" : "Player(s)"));
+        ArgumentHelper.sendSenderMiniMessage(context, "<green> Revoked wins");
 
         return 0;
     }
@@ -36,8 +40,7 @@ public class RevokeWinCommand extends EventModuleCattamand<WinnableModule> {
                         "players",
 
                         ArgumentTypes.playerProfiles(),
-                        (ctx) -> getEventModule(ctx)
-                                .getPlayersWon().stream().map(
+                        (ctx) -> module.getPlayersWon().stream().map(
                                         id -> Bukkit.getOfflinePlayer(id).getName()
                                 ).toList(),
 

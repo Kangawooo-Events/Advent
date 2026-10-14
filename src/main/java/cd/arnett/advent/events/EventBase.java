@@ -6,11 +6,8 @@ import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.ReadYaml;
 import cd.arnett.advent.events.annotations.WriteYaml;
 import cd.arnett.advent.events.controls.*;
-import cd.arnett.advent.events.controls.registration.AddRegistrationCommand;
-import cd.arnett.advent.events.controls.registration.RemoveRegistrationCommand;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
-import com.destroystokyo.paper.profile.PlayerProfile;
 import com.google.common.collect.HashBasedTable;
 import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 import org.apache.commons.lang3.ClassUtils;
@@ -41,7 +38,7 @@ import java.util.function.BiConsumer;
  */
 public abstract class EventBase implements Comparable<EventBase>{
 
-    HashMap<UUID, PlayerEventStatus> registeredPlayers = new HashMap<>();
+    HashMap<UUID, PlayerEventStatus> eventPlayers = new HashMap<>();
     HashMap<Class<? extends Annotation>, HashMap<Method, Annotation>> callbacks = new HashMap<>();
     EnumMap<JoinTaskPriority, ArrayList<Method>> joinTasks = new EnumMap<>(JoinTaskPriority.class);
 
@@ -121,7 +118,7 @@ public abstract class EventBase implements Comparable<EventBase>{
      * @param foreachResult What to do with the result
      * @param params What parameters to pass
      */
-    final void invokeCallbacks(Class<? extends Annotation> type, BiConsumer<Object, Annotation> foreachResult, Object... params)
+    public final void invokeCallbacks(Class<? extends Annotation> type, BiConsumer<Object, Annotation> foreachResult, Object... params)
     {
         callbacks.getOrDefault(type, new HashMap<>(0)).forEach((method, annotation) -> {
             try {
@@ -167,12 +164,6 @@ public abstract class EventBase implements Comparable<EventBase>{
      * @return Identification of this event's type, used for specifying registered event types creating events
      */
     public abstract NamespacedKey eventKey();
-
-    /**
-     * @return Whether players have to be registered with the event beforehand to join. If false,
-     * players will be registered if not already when attempting to join
-     */
-    public abstract boolean requiresRegistration();
 
     /**
      * @return Whether players should automatically be set to join this event when they
@@ -226,7 +217,7 @@ public abstract class EventBase implements Comparable<EventBase>{
     =================================================================================================*/
 
     /**
-     * Makes a player join the event if registered (Absent -> Playing)
+     * Makes a player join the event
      * @param player Player who joined
      * @return Whether the player was allowed to join
      */
@@ -260,7 +251,7 @@ public abstract class EventBase implements Comparable<EventBase>{
                 {
                     //if they successfully joined this event set them as such in the tracker
                     EventTracker.setPlayingEvent(id, this);
-                    registeredPlayers.put(id, PlayerEventStatus.PLAYING);
+                    eventPlayers.put(id, PlayerEventStatus.PLAYING);
                     EventTracker.limboPlayers.remove(id);
                 }
                 else
@@ -392,7 +383,7 @@ public abstract class EventBase implements Comparable<EventBase>{
         {
             //clear tracked event
             EventTracker.clearPlayingEvent(id);
-            registeredPlayers.put(id, PlayerEventStatus.ABSENT);
+            eventPlayers.put(id, PlayerEventStatus.ABSENT);
             invokeCallbacks(OnLeaveEvent.class, null, player);
         }
     }
@@ -506,18 +497,14 @@ public abstract class EventBase implements Comparable<EventBase>{
      */
     public final Cattamand getEventCommandTree() {
 
-        commandControls.add(new JoinEventCommand());
-        commandControls.add(new SaveEventCommand());
-        commandControls.add(new CloseEventCommand());
-        commandControls.add(new OpenEventCommand());
-        commandControls.add(new EventInfoCommand());
-        commandControls.add(new FreezeEventCommand());
-        commandControls.add(new UnfreezeEventCommand());
-        commandControls.add(new SetPvPCommand());
-        commandControls.add(new LiteralCattamand("registrations", List.of(
-                new AddRegistrationCommand(),
-                new RemoveRegistrationCommand()
-        )));
+        commandControls.add(new JoinEventCommand(this));
+        commandControls.add(new SaveEventCommand(this));
+        commandControls.add(new CloseEventCommand(this));
+        commandControls.add(new OpenEventCommand(this));
+        commandControls.add(new EventInfoCommand(this));
+        commandControls.add(new FreezeEventCommand(this));
+        commandControls.add(new UnfreezeEventCommand(this));
+        commandControls.add(new SetPvPCommand(this));
 
         invokeCallbacks(EventControl.class, (result, annotation) -> {
             commandControls.add((Cattamand)result);
@@ -613,7 +600,7 @@ public abstract class EventBase implements Comparable<EventBase>{
         List<String> stringPlayers = yaml.getStringList("players");
 
         stringPlayers.forEach(player -> {
-            registeredPlayers.put(UUID.fromString(player), PlayerEventStatus.ABSENT);
+            eventPlayers.put(UUID.fromString(player), PlayerEventStatus.ABSENT);
         });
 
         isActive = yaml.getBoolean("active");
@@ -637,19 +624,19 @@ public abstract class EventBase implements Comparable<EventBase>{
     =================================================================================================*/
 
     /**
-     * Gets a set of all registered players
+     * Gets a set of all tracked players
      */
-    public final HashSet<UUID> getRegisteredPlayers()
+    public final HashSet<UUID> getEventPlayers()
     {
-        return new HashSet<>(registeredPlayers.keySet());
+        return new HashSet<>(eventPlayers.keySet());
     }
 
     /**
-     * Gets a set of all registered players who are online (not PLAYING, but online)
+     * Gets a set of all event players who are online (not PLAYING, but online)
      */
     public final List<Player> getOnlinePlayers()
     {
-        return registeredPlayers.keySet().stream().map(Bukkit::getPlayer).filter(Objects::nonNull).toList();
+        return eventPlayers.keySet().stream().map(Bukkit::getPlayer).filter(Objects::nonNull).toList();
     }
 
     /**
@@ -657,7 +644,7 @@ public abstract class EventBase implements Comparable<EventBase>{
      */
     public final List<Player> getPlayingPlayers()
     {
-        return registeredPlayers.entrySet().stream().filter(entry ->
+        return eventPlayers.entrySet().stream().filter(entry ->
                 isPlaying(entry.getKey())
         ).map(entry ->
                 Bukkit.getPlayer(entry.getKey())
@@ -669,18 +656,9 @@ public abstract class EventBase implements Comparable<EventBase>{
      */
     public final HashMap<UUID, PlayerEventStatus> getPlayerStatusMap()
     {
-        return new HashMap<>(registeredPlayers);
+        return new HashMap<>(eventPlayers);
     }
 
-    /**
-     * Is a player registered to play in this event
-     * @param id Id of Player to check
-     * @return Registration status
-     */
-    public final boolean isRegistered(UUID id)
-    {
-        return registeredPlayers.containsKey(id);
-    }
 
     /**
      * Is a player currently playing in this event
@@ -689,7 +667,7 @@ public abstract class EventBase implements Comparable<EventBase>{
      */
     public final boolean isPlaying(UUID id)
     {
-        return registeredPlayers.get(id) == PlayerEventStatus.PLAYING;
+        return eventPlayers.get(id) == PlayerEventStatus.PLAYING;
     }
 
 
@@ -701,11 +679,7 @@ public abstract class EventBase implements Comparable<EventBase>{
             (
                     isActive &&
                             (currentEvent == null || !currentEvent.preventLeavingWhilePlaying()) &&
-                            !isPlaying(player.getUniqueId()) &&
-                            ((
-                                    !requiresRegistration() ||
-                                            registeredPlayers.containsKey(player.getUniqueId())
-                            ))
+                            !isPlaying(player.getUniqueId())
             )))
         {
             return false;
@@ -718,7 +692,6 @@ public abstract class EventBase implements Comparable<EventBase>{
                 allSuccess.set(false);
         }, player);
 
-        //leave if we require registration and player is not registered, or they are already playing another event
         return allSuccess.get();
     }
 
@@ -728,7 +701,7 @@ public abstract class EventBase implements Comparable<EventBase>{
      */
     public final PlayerEventStatus getStatus(UUID id)
     {
-        return registeredPlayers.getOrDefault(id, PlayerEventStatus.OMITTED);
+        return eventPlayers.getOrDefault(id, PlayerEventStatus.OMITTED);
     }
 
 
@@ -766,24 +739,14 @@ public abstract class EventBase implements Comparable<EventBase>{
     //----------= Overloads =-----------------------------------------------------------------------------
 
     /**
-     * Is a player registered to play in this event (overload)
-     * @param player Player to check
-     * @return Registration status
-     */
-    public final boolean isRegistered(Player player)
-    {
-        return isRegistered(player.getUniqueId());
-    }
-
-    /**
      * Is a player registered to play in this event and is of a filtered status (overload)
      * @param id Id of Player to check
      * @param filtered Statuses to filter, if a player is not of one of these it is false
      * @return Registration status
      */
-    public final boolean isRegistered(UUID id, PlayerEventStatus... filtered)
+    public final boolean isEventPlayer(UUID id, PlayerEventStatus... filtered)
     {
-        var status = registeredPlayers.get(id);
+        var status = eventPlayers.get(id);
 
         //if not registered don't search
         if(status == null) return false;
@@ -811,70 +774,6 @@ public abstract class EventBase implements Comparable<EventBase>{
 
     //endregion
 
-
-    //endregion
-
-
-
-    //region Registration
-
-    /*=================================================================================================
-                        -  Registration  -
-    =================================================================================================*/
-
-    /**
-     * Registers a player for this event (overload)
-     * @param player Profile of player to register
-     */
-    public final void register(PlayerProfile player)
-    {
-        registeredPlayers.put(player.getId(), PlayerEventStatus.ABSENT);
-        invokeCallbacks(OnRegistrationAdd.class, null, player);
-    }
-
-
-    /**
-     * Revokes Registration from an event (and removes them if they are playing)
-     * @param player Profile of player to register
-     */
-    public final void revokeRegistration(PlayerProfile player)
-    {
-        if(isPlaying(player.getId()))
-        {
-            Player playerObj = Bukkit.getPlayer(player.getId());
-            leave(playerObj);
-            EventTracker.getHubEvent().join(playerObj);
-        }
-
-        registeredPlayers.remove(player.getId());
-        invokeCallbacks(OnRegistrationRemove.class, null, player);
-    }
-
-    //region Overloads
-
-    //----------= Overloads =-----------------------------------------------------------------------------
-
-
-    /**
-     * Registers a player for this event, removes them from the revoked list if present
-     * @param id ID of player to register
-     */
-    public final void register(UUID id)
-    {
-        register(Bukkit.createProfile(id));
-    }
-
-
-    /**
-     * Revokes Registration from an event (and removes them if they are playing) (overload)
-     * @param id ID of Player to register
-     */
-    public final void revokeRegistration(UUID id)
-    {
-        revokeRegistration(Bukkit.createProfile(id));
-    }
-
-    //endregion
 
     //endregion
 
@@ -1090,30 +989,6 @@ public abstract class EventBase implements Comparable<EventBase>{
     }
 
 
-    /**
-     * @return Provides information section on what players are actively playing in the event
-     */
-    @EventInfoProvider(name = "Registered", separate = true)
-    public final Map<String, Object> registeredInfo()
-    {
-        HashMap<String, Object> sectionMap = new HashMap<>();
-        StringBuilder output = new StringBuilder();
-        var players = getRegisteredPlayers();
-
-        AtomicInteger counter = new AtomicInteger(0);
-        players.stream().map(Bukkit::getOfflinePlayer).map(OfflinePlayer::getName).forEach(name -> {
-            boolean even = counter.getAndIncrement() % 2 == 0;
-
-            output.append(even ? "<color:#c4c4c4>" : "</color:#c4c4c4>").append(name).append(' ');
-
-        });
-
-        sectionMap.put("Count", players.size());
-        sectionMap.put("Players", output.toString());
-
-        return sectionMap;
-    }
-
 
     /**
      * @return Provides information section on what players are actively playing in the event
@@ -1148,7 +1023,7 @@ public abstract class EventBase implements Comparable<EventBase>{
     {
         HashMap<String, Object> sectionMap = new HashMap<>();
 
-        int registeredSize = getRegisteredPlayers().size();
+        int registeredSize = getEventPlayers().size();
 
         sectionMap.put("Registered Count", registeredSize);
         sectionMap.put("Playing Count", getPlayingPlayers().size() + " out of " + registeredSize + " registered");
@@ -1159,6 +1034,7 @@ public abstract class EventBase implements Comparable<EventBase>{
     }
 
     //endregion
+
 
 
     //region Comparability

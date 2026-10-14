@@ -178,7 +178,7 @@ public interface EliminationModule extends WinnableModule {
         var event = getEvent();
         for (UUID playerId : playerIds)
         {
-            if(event.requiresRegistration() && !event.isRegistered(playerId))
+            if(!event.isEventPlayer(playerId))
             {
                 continue;
             }
@@ -198,7 +198,7 @@ public interface EliminationModule extends WinnableModule {
         var event = getEvent();
         for (UUID playerId : playerIds)
         {
-            if(event.requiresRegistration() && !event.isRegistered(playerId))
+            if(!event.isEventPlayer(playerId))
             {
                 Advent.logger.warning("Attempted instating player who is not registered");
                 continue;
@@ -259,8 +259,8 @@ public interface EliminationModule extends WinnableModule {
         return new LiteralCattamand(
                 "eliminations",
                 List.of(
-                        new EliminateCommand(),
-                        new InstateCommand()
+                        new EliminateCommand(getEvent()),
+                        new InstateCommand(getEvent())
                 )
         );
     }

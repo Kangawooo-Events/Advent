@@ -1,6 +1,5 @@
 package cd.arnett.advent.events.controls;
 
-import cd.arnett.advent.EventTracker;
 import cd.arnett.advent.commands.EventBaseCattamand;
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
@@ -14,21 +13,20 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class JoinEventCommand extends EventBaseCattamand {
+    public JoinEventCommand(EventBase base) {
+        super(base);
+    }
+
     @Override
-    public int execute(CommandContext<CommandSourceStack> context, EventBase event) throws CommandSyntaxException {
+    public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         Player sender = ArgumentHelper.getPlayerSender(context);
 
         if(!event.isActive())
         {
             ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>That Event is Not Open");
-        }
-        if(event.requiresRegistration() && !event.isRegistered(sender.getUniqueId()))
-        {
-            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>You are not Registered for this event");
         }
 
         if(!event.canJoin(sender))
@@ -54,7 +52,6 @@ public class JoinEventCommand extends EventBaseCattamand {
     public int groupExecute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         List<Player> targets = ArgumentHelper.getPlayersFromArgs("targets", context);
 
-        EventBase event = getEvent(context);
         ArrayList<CompletableFuture<Boolean>> teleportationTasks = new ArrayList<>();
 
         if(!event.isActive())
@@ -97,11 +94,6 @@ public class JoinEventCommand extends EventBaseCattamand {
                                         + " Player(s) <bold>Failed Joining</bold> Event "
                                         + event.eventKey().toString()
                                         + "\nMake sure event is <bold>Open</bold>"
-                                        + (
-                                                event.requiresRegistration() ?
-                                                        " and Players are <bold>Registered</bold>" :
-                                                        ""
-                                        )
                         );
                     }
                 }
