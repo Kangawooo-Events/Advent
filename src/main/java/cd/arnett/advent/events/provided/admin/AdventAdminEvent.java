@@ -15,22 +15,17 @@ public class AdventAdminEvent extends EventBase implements SeparateStateModule {
     }
 
     @Override
-    public boolean autoOpen() {
-        return true;
-    }
-
-    @Override
     public boolean preventLeavingWhilePlaying() {
         return false;
     }
 
     @Override
-    public void onEventOpen() {
+    public void onEventStart() {
 
     }
 
     @Override
-    public void onEventClose() {
+    public void onEventStop() {
 
     }
 

@@ -2,6 +2,8 @@ package cd.arnett.advent.events;
 
 import cd.arnett.advent.Advent;
 import cd.arnett.advent.EventTracker;
+import cd.arnett.advent.commands.commandTree.StartEventCommand;
+import cd.arnett.advent.commands.commandTree.StopEventCommand;
 import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.ReadYaml;
 import cd.arnett.advent.events.annotations.WriteYaml;
@@ -47,7 +49,7 @@ public abstract class EventBase implements Comparable<EventBase>{
      */
     HashMap<String, Object> moduleData = new HashMap<>();
 
-    boolean isActive = false;
+    boolean isRunning = false;
     boolean isFrozen = false;
     boolean allowPvp = canPvPByDefault();
 
@@ -142,7 +144,7 @@ public abstract class EventBase implements Comparable<EventBase>{
      * Invokes callbacks of type
      * @param type type of callbacks to invoke
      */
-    final void invokeCallbacks(Class<? extends Annotation> type) {
+    public final void invokeCallbacks(Class<? extends Annotation> type) {
         invokeCallbacks(type, null);
     }
 
@@ -170,11 +172,6 @@ public abstract class EventBase implements Comparable<EventBase>{
      * join the server if they are registered and this event is running
      */
     public boolean autoJoin() {return false;}
-
-    /**
-     * @return Should this event automatically start when it is registered with the EventTracker
-     */
-    public abstract boolean autoOpen();
 
     /**
      * @return Should players be ale to pvp without you having to do /pvp enable
@@ -229,6 +226,7 @@ public abstract class EventBase implements Comparable<EventBase>{
         //check if player can join first
         if(!canJoin(player))
         {
+            joinFallback(player);
             var future = new CompletableFuture<Boolean>();
             future.complete(false);
             return future;
@@ -256,7 +254,7 @@ public abstract class EventBase implements Comparable<EventBase>{
                 }
                 else
                 {
-                    failJoinFallback(player);
+                    joinFallback(player);
                 }
             });
 
@@ -268,6 +266,7 @@ public abstract class EventBase implements Comparable<EventBase>{
         {
             Advent.logger.warning("Unable To join Event " + eventKey());
             e.printStackTrace();
+            joinFallback(player);
             var future = new CompletableFuture<Boolean>();
             future.complete(false);
             return future;
@@ -278,8 +277,9 @@ public abstract class EventBase implements Comparable<EventBase>{
      * Called when the join task fails
      * @param player Player who failed to join
      */
-    protected void failJoinFallback(Player player)
+    public void joinFallback(Player player)
     {
+        System.out.println("Joining Fallback Event");
         EventTracker.getHubEvent().join(player);
     }
 
@@ -373,10 +373,11 @@ public abstract class EventBase implements Comparable<EventBase>{
     }
 
     /**
-     * forces a player to leave the event (if you want to revoke registration this is different)
+     * forces a player to leave the event. This DOES NOT send them to fallback so only be sure to call this if
+     * they aren't going to be sent to a between event state or are leaving server
      * @param player Player who left
      */
-    public final void leave(Player player)
+    public void leave(Player player)
     {
         var id = player.getUniqueId();
         if(isPlaying(id))
@@ -407,28 +408,28 @@ public abstract class EventBase implements Comparable<EventBase>{
     /**
      * Call to start event
      */
-    public final void openEvent()
+    public final void startEvent()
     {
-        if(isActive)
+        if(isRunning)
             return;
 
-        isActive = true;
-        invokeCallbacks(OnEventOpen.class);
+        isRunning = true;
+        invokeCallbacks(OnEventStart.class);
     }
 
     /**
      * Call to stop event
      */
-    public final void closeEvent()
+    public final void stopEvent()
     {
-        if(!isActive)
+        if(!isRunning)
             return;
 
-        //make all players leave
-        getPlayingPlayers().forEach(this::leave);
+        //make all players leave to fallback
+        getPlayingPlayers().forEach(this::joinFallback);
 
-        isActive = false;
-        invokeCallbacks(OnEventClose.class);
+        isRunning = false;
+        invokeCallbacks(OnEventStop.class);
     }
 
     /**
@@ -499,10 +500,10 @@ public abstract class EventBase implements Comparable<EventBase>{
 
         commandControls.add(new JoinEventCommand(this));
         commandControls.add(new SaveEventCommand(this));
-        commandControls.add(new CloseEventCommand(this));
-        commandControls.add(new OpenEventCommand(this));
         commandControls.add(new EventInfoCommand(this));
         commandControls.add(new FreezeEventCommand(this));
+        commandControls.add(new StartEventCommand(this));
+        commandControls.add(new StopEventCommand(this));
         commandControls.add(new UnfreezeEventCommand(this));
         commandControls.add(new SetPvPCommand(this));
 
@@ -528,14 +529,14 @@ public abstract class EventBase implements Comparable<EventBase>{
     /**
      * Called when the event is started
      */
-    @OnEventOpen
-    public abstract void onEventOpen();
+    @OnEventStart
+    public abstract void onEventStart();
 
     /**
      * Called when the event is stopped
      */
-    @OnEventClose
-    public abstract void onEventClose();
+    @OnEventStop
+    public abstract void onEventStop();
 
     /**
      * Called when a player joins an event
@@ -572,7 +573,7 @@ public abstract class EventBase implements Comparable<EventBase>{
         //write players
         var playerMap = getPlayerStatusMap();
         yaml.set("players", playerMap.keySet().stream().map(UUID::toString).toList());
-        yaml.set("active", isActive);
+        yaml.set("running", isRunning);
         yaml.set("frozen", isFrozen);
         yaml.set("pvp", allowPvp);
 
@@ -603,7 +604,7 @@ public abstract class EventBase implements Comparable<EventBase>{
             eventPlayers.put(UUID.fromString(player), PlayerEventStatus.ABSENT);
         });
 
-        isActive = yaml.getBoolean("active");
+        isRunning = yaml.getBoolean("running");
         isFrozen = yaml.getBoolean("frozen");
         allowPvp = yaml.getBoolean("pvp");
 
@@ -675,12 +676,13 @@ public abstract class EventBase implements Comparable<EventBase>{
     {
         var currentEvent = EventTracker.getPlayingEvent(player.getUniqueId());
 
-        if(!(player.isOp() ||
-            (
-                    isActive &&
-                            (currentEvent == null || !currentEvent.preventLeavingWhilePlaying()) &&
-                            !isPlaying(player.getUniqueId())
-            )))
+        if(!isRunning ||
+            !(player.isOp() ||
+                (
+                    (currentEvent == null || !currentEvent.preventLeavingWhilePlaying()) &&
+                    !isPlaying(player.getUniqueId())
+                )
+            ))
         {
             return false;
         }
@@ -728,9 +730,9 @@ public abstract class EventBase implements Comparable<EventBase>{
     /**
      * @return Whether this event is active
      */
-    public final boolean isActive()
+    public final boolean isRunning()
     {
-        return isActive;
+        return isRunning;
     }
 
 
@@ -1028,7 +1030,7 @@ public abstract class EventBase implements Comparable<EventBase>{
         sectionMap.put("Registered Count", registeredSize);
         sectionMap.put("Playing Count", getPlayingPlayers().size() + " out of " + registeredSize + " registered");
         sectionMap.put("<hover:show_text:'Whether the event is currentley running'>Event State</hover>",
-                isActive ?  "<bold><green>ACTIVE<reset>" : "<bold><red>INACTIVE<reset>");
+                isRunning ?  "<bold><green>STARTED<reset>" : "<bold><red>STOPPED<reset>");
 
         return sectionMap;
     }

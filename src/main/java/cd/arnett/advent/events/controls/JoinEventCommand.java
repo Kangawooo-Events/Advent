@@ -24,16 +24,16 @@ public class JoinEventCommand extends EventBaseCattamand {
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         Player sender = ArgumentHelper.getPlayerSender(context);
 
-        if(!event.isActive())
+        if(!event.isRunning())
         {
-            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>That Event is Not Open");
+            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>That Event is Not Running");
         }
 
         if(!event.canJoin(sender))
         {
             ArgumentHelper.sendSenderMiniMessage(
                     context,
-                    "<color:#ff597a> You Cannot Join This Event"
+                    "<color:#ff597a> You Cannot Join This Event "
                             + event.eventKey().toString()
             );
             return 0;
@@ -54,9 +54,9 @@ public class JoinEventCommand extends EventBaseCattamand {
 
         ArrayList<CompletableFuture<Boolean>> teleportationTasks = new ArrayList<>();
 
-        if(!event.isActive())
+        if(!event.isRunning())
         {
-            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>That Event is Not Open");
+            ArgumentHelper.sendSenderMiniMessage(context, "<color:#ff597a>That Event is Not Running");
         }
 
 

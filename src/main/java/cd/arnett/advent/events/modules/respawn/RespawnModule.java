@@ -78,14 +78,12 @@ public interface RespawnModule extends EventModule {
     {
         if(respawn.location == null)
         {
-            System.out.println("Respawn Null");
             return false;
         }
         else
         {
             if(!respawn.requiresBlock)
             {
-                System.out.println("Respawn passed true");
                 return true;
             }
 
@@ -99,7 +97,6 @@ public interface RespawnModule extends EventModule {
                         if(respawnBlockData instanceof Bed ||
                                 (respawnBlockData instanceof RespawnAnchor anchor && anchor.getCharges() > 0))
                         {
-                            System.out.println("Respawn Checking true");
                             return true;
                         }
 
@@ -107,7 +104,6 @@ public interface RespawnModule extends EventModule {
                 }
             }
 
-            System.out.println("Respawn Checking false");
             return false;
         }
     }

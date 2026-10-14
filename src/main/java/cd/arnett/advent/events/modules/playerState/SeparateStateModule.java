@@ -50,7 +50,7 @@ public interface SeparateStateModule extends EventModule {
     {
         if(getEvent().isEventPlayer(id, PlayerEventStatus.PLAYING))
         {
-            getEvent().leave(Bukkit.getPlayer(id));
+            getEvent().joinFallback(Bukkit.getPlayer(id));
         }
 
         getPlayerStates().remove(id);

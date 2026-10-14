@@ -39,7 +39,11 @@ tasks {
 
 publishing {
     publications {
-        create<MavenPublication>("maven") {
+        register<MavenPublication>("mavenJava") {
+            groupId = "cd.arnett"
+            artifactId = "Advent"
+
+            version = "1.A.6"
             from(components["java"])
         }
     }

@@ -23,6 +23,11 @@ public class JoinCommand extends Cattamand {
             ArgumentHelper.sendSenderMiniMessage(context, "<red>No Automatically Joinable Events Available");
             return 0;
         }
+        else if(event.isRunning())
+        {
+            ArgumentHelper.sendSenderMiniMessage(context, "<red>The Event is Not Currently Running");
+            return 0;
+        }
         else if (EventTracker.getPlayingEvent(player.getUniqueId()) == event)
         {
             ArgumentHelper.sendSenderMiniMessage(context, "<red>You are already playing in the highest priority event");

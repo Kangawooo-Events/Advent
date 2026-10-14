@@ -1,10 +1,7 @@
 package cd.arnett.advent.events.modules.elimination;
 
 import cd.arnett.advent.Advent;
-import cd.arnett.advent.events.annotations.EventControl;
-import cd.arnett.advent.events.annotations.EventInfoProvider;
-import cd.arnett.advent.events.annotations.ModuleDataProvider;
-import cd.arnett.advent.events.annotations.OnRegistrationAdd;
+import cd.arnett.advent.events.annotations.*;
 import cd.arnett.advent.events.annotations.data.HashSetModuleData;
 import cd.arnett.advent.events.annotations.data.UUIDModuleData;
 import cd.arnett.advent.events.modules.elimination.controls.EliminateCommand;
@@ -12,7 +9,6 @@ import cd.arnett.advent.events.modules.elimination.controls.InstateCommand;
 import cd.arnett.advent.events.modules.winnable.WinnableModule;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import cd.arnett.caddamands.cattamands.cattamand.LiteralCattamand;
-import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -38,7 +34,7 @@ public interface EliminationModule extends WinnableModule {
      */
     @ModuleDataProvider(key = remainingListName, fileBasename = yamlFileName)
     @HashSetModuleData(type = UUIDModuleData.class)
-    default HashSet<UUID> remainingPlayers()
+    default HashSet<UUID> provideRemainingPlayers()
     {
         return new HashSet<>();
     }
@@ -48,7 +44,7 @@ public interface EliminationModule extends WinnableModule {
      */
     @ModuleDataProvider(key = eliminatedListName, fileBasename = yamlFileName)
     @HashSetModuleData(type = UUIDModuleData.class)
-    default HashSet<UUID> eliminatedPlayers()
+    default HashSet<UUID> provideEliminatedPlayers()
     {
         return new HashSet<>();
     }
@@ -79,10 +75,14 @@ public interface EliminationModule extends WinnableModule {
                         -  Listeners  -
     =================================================================================================*/
 
-    @OnRegistrationAdd
-    default void registerWithEliminations(PlayerProfile playerProfile)
+    @OnJoinEvent
+    default void trackEliminationStatus(Player player)
     {
-        getRemainingListData().add(playerProfile.getId());
+        UUID id = player.getUniqueId();
+        if (!isPlayerEliminated(id))
+        {
+            getRemainingListData().add(id);
+        }
     }
 
 
@@ -139,6 +139,16 @@ public interface EliminationModule extends WinnableModule {
     default List<UUID> getPlayersEliminated()
     {
         return List.copyOf(getEliminatedListData());
+    }
+
+    /**
+     *
+     * @param playerId ID of player to check
+     * @return has the player been eliminated
+     */
+    default boolean isPlayerEliminated(UUID playerId)
+    {
+        return getPlayersEliminated().contains(playerId);
     }
 
     //region Overloads

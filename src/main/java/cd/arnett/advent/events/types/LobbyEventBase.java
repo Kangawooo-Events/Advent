@@ -13,11 +13,6 @@ public abstract class LobbyEventBase extends EventBase implements RelocationModu
     }
 
     @Override
-    public final boolean autoOpen() {
-        return true;
-    }
-
-    @Override
     public boolean preventLeavingWhilePlaying() {
         return false;
     }

@@ -17,12 +17,12 @@ public class AdventDevEvent extends LobbyEventBase {
     }
 
     @Override
-    public void onEventOpen() {
+    public void onEventStart() {
 
     }
 
     @Override
-    public void onEventClose() {
+    public void onEventStop() {
 
     }
 

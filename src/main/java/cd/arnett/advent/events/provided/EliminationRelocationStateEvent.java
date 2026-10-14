@@ -19,24 +19,19 @@ public class EliminationRelocationStateEvent extends EventBase implements Elimin
     }
 
     @Override
-    public boolean autoOpen() {
-        return false;
-    }
-
-    @Override
     public boolean preventLeavingWhilePlaying() {
         return false;
     }
 
     @Override
-    public void onEventOpen() {
+    public void onEventStart() {
         getOnlinePlayers().forEach(player -> {
             player.sendMessage(MiniMessage.miniMessage().deserialize("<green><bold>Event Started"));
         });
     }
 
     @Override
-    public void onEventClose() {
+    public void onEventStop() {
         getPlayingPlayers().forEach(player -> {
             player.sendMessage(MiniMessage.miniMessage().deserialize("<red><bold>Event Stopped"));
         });

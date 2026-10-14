@@ -100,12 +100,6 @@ public class EventTracker {
      */
     public static List<NamespacedKey> getEventNames()
     {
-        Advent.logger.warning("GETTING EVENT NAMES");
-
-        for (EventBase registeredEvent : registeredEvents) {
-            System.out.println(registeredEvent.eventKey());
-        }
-
         return List.copyOf(registeredEvents.stream().map(EventBase::eventKey).toList());
     }
 
@@ -189,13 +183,6 @@ public class EventTracker {
             if(Files.exists(eventDataPath))
             {
                 event.readFromYaml(YamlConfiguration.loadConfiguration(eventDataPath.toFile()));
-            }
-
-
-            //start event if set to autostart
-            if(event.autoOpen())
-            {
-                event.openEvent();
             }
         });
 

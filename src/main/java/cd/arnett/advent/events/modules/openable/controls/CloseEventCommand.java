@@ -1,7 +1,9 @@
-package cd.arnett.advent.events.controls;
+package cd.arnett.advent.events.modules.openable.controls;
 
 import cd.arnett.advent.commands.EventBaseCattamand;
+import cd.arnett.advent.commands.EventModuleCattamand;
 import cd.arnett.advent.events.EventBase;
+import cd.arnett.advent.events.modules.openable.OpenableModule;
 import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import com.mojang.brigadier.context.CommandContext;
@@ -10,22 +12,22 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 
 import java.util.List;
 
-public class OpenEventCommand extends EventBaseCattamand {
+public class CloseEventCommand extends EventModuleCattamand<OpenableModule> {
 
-    public OpenEventCommand(EventBase base) {
+    public CloseEventCommand(EventBase base) {
         super(base);
     }
 
     @Override
     public int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        if(event.isActive())
+        if(!module.isOpen())
         {
-            ArgumentHelper.sendSenderMiniMessage(context, "<red>The event has already been opened!");
+            ArgumentHelper.sendSenderMiniMessage(context, "<red>The event has already been closed!");
             return 0;
         }
 
-        event.openEvent();
-        ArgumentHelper.sendSenderMiniMessage(context, "<green>Opened Event " + event.eventKey());
+        module.closeEvent();
+        ArgumentHelper.sendSenderMiniMessage(context, "<green>Closed Event " + event.eventKey());
         return 0;
     }
 
@@ -36,7 +38,7 @@ public class OpenEventCommand extends EventBaseCattamand {
 
     @Override
     public String getName() {
-        return "open";
+        return "close";
     }
 
     @Override

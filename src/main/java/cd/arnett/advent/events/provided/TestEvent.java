@@ -12,14 +12,9 @@ public class TestEvent extends EventBase {
     public NamespacedKey eventKey() {
         return new NamespacedKey(Advent.singleton, "testevent");
     }
- 
-    @Override
-    public boolean autoJoin() {
-        return false;
-    }
 
     @Override
-    public boolean autoOpen() {
+    public boolean autoJoin() {
         return false;
     }
 
@@ -29,14 +24,14 @@ public class TestEvent extends EventBase {
     }
 
     @Override
-    public void onEventOpen() {
+    public void onEventStart() {
         getOnlinePlayers().forEach(player -> {
             player.sendMessage(MiniMessage.miniMessage().deserialize("<green><bold>Event Started"));
         });
     }
 
     @Override
-    public void onEventClose() {
+    public void onEventStop() {
         getPlayingPlayers().forEach(player -> {
             player.sendMessage(MiniMessage.miniMessage().deserialize("<red><bold>Event Stopped"));
         });

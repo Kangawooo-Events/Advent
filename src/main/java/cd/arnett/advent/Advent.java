@@ -47,6 +47,13 @@ public final class Advent extends JavaPlugin {
         getLifecycleManager().registerEventHandler(
                 LifecycleEvents.COMMANDS.newHandler(registration -> {
                     new EventCommand().registerAsRoot(this, registration);
+                    try {
+                        DestinationManager.readData();
+                        EventTracker.loadRegisteredEvents();
+                        DestinationManager.startDisplayTask();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }).priority(69420)
         );
 
@@ -65,6 +72,7 @@ public final class Advent extends JavaPlugin {
         )).setAliases(List.of("dest", "eventdestination")).registerAsRoot(this);
         new HubCommand().registerAsRoot(this);
         new DevCommand().registerAsRoot(this);
+        new CheckEventCommand().registerAsRoot(this);
         new AdminCommand().registerAsRoot(this);
         new JoinCommand().registerAsRoot(this);
         new GoToCommand().registerAsRoot(this);
@@ -89,13 +97,6 @@ public final class Advent extends JavaPlugin {
         EventTracker.registerEvent(new EliminationRelocationEvent());
         EventTracker.registerEvent(new EliminationRelocationStateEvent());
 
-        try {
-            DestinationManager.readData();
-            DestinationManager.startDisplayTask();
-            EventTracker.loadRegisteredEvents();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override

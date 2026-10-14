@@ -16,12 +16,12 @@ public class AdventHubEvent extends LobbyEventBase {
     }
 
     @Override
-    public void onEventOpen() {
+    public void onEventStart() {
 
     }
 
     @Override
-    public void onEventClose() {
+    public void onEventStop() {
 
     }
 
@@ -58,7 +58,7 @@ public class AdventHubEvent extends LobbyEventBase {
     }
 
     @Override
-    protected void failJoinFallback(Player player) {
+    public void joinFallback(Player player) {
         player.kick(MiniMessage.miniMessage().deserialize(
                 "<color:#ff597a>You Failed To Join This Server's Hub"
         ));
