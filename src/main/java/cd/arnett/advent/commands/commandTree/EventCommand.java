@@ -1,14 +1,12 @@
 package cd.arnett.advent.commands.commandTree;
 
 import cd.arnett.advent.EventTracker;
-import cd.arnett.caddamands.cattamands.arguments.ArgumentHelper;
 import cd.arnett.caddamands.cattamands.arguments.Cattarameter;
 import cd.arnett.caddamands.cattamands.cattamand.Cattamand;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
-import org.bukkit.NamespacedKey;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,13 +19,7 @@ public class EventCommand extends Cattamand {
 
     @Override
     public List<? extends Cattarameter> getArguments() {
-        return List.of(
-                new Cattarameter(
-                        "event",
-                        ArgumentTypes.namespacedKey(),
-                        (ctx) -> EventTracker.getEventNames()
-                )
-        );
+        return List.of();
     }
 
     @Override
@@ -50,7 +42,7 @@ public class EventCommand extends Cattamand {
         ArrayList<Cattamand> subCommands = new ArrayList<>();
 
         EventTracker.getEvents().forEach(eventBase -> {
-            subCommands.addAll(eventBase.getCommandControls());
+            subCommands.add(eventBase.getEventCommandTree());
         });
 
         return subCommands;

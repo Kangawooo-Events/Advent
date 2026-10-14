@@ -504,7 +504,7 @@ public abstract class EventBase implements Comparable<EventBase>{
     /**\
      * @return all Cattamand controls provided by the interfaces
      */
-    public final List<Cattamand> getCommandControls() {
+    public final Cattamand getEventCommandTree() {
 
         commandControls.add(new JoinEventCommand());
         commandControls.add(new SaveEventCommand());
@@ -523,7 +523,7 @@ public abstract class EventBase implements Comparable<EventBase>{
             commandControls.add((Cattamand)result);
         });
 
-        return commandControls;
+        return new LiteralCattamand(eventKey().toString(), commandControls);
 
     }
 
@@ -1169,7 +1169,10 @@ public abstract class EventBase implements Comparable<EventBase>{
 
     @Override
     public int compareTo(@NotNull EventBase o) {
-        return Integer.compare(priority(), o.priority());
+        int diff = Integer.compare(priority(), o.priority());
+        if(diff == 0)
+            diff = o.eventKey().toString().compareTo(eventKey().toString());
+        return diff;
     }
 
     //endregion

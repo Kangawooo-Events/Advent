@@ -2,6 +2,7 @@ package cd.arnett.advent;
 
 import cd.arnett.advent.events.EventBase;
 import cd.arnett.advent.events.types.LobbyEventBase;
+import com.google.common.collect.TreeMultiset;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -22,7 +23,7 @@ public class EventTracker {
      * Tracks the active events, the players in them and their status. here for faster lookup of player -> events
      * and events -> players without having to have it in separate locations
      */
-    static TreeSet<EventBase> registeredEvents = new TreeSet<>();
+    static TreeSet<EventBase> registeredEvents = new TreeSet<EventBase>();
 
     /**
      * Tracks what events players are playing in
@@ -53,6 +54,7 @@ public class EventTracker {
     public static List<EventBase> getRegisteredEvents(UUID playerId)
     {
         ArrayList<EventBase> events = new ArrayList<>();
+
 
         for(var entry : registeredEvents)
         {
@@ -99,6 +101,12 @@ public class EventTracker {
      */
     public static List<NamespacedKey> getEventNames()
     {
+        Advent.logger.warning("GETTING EVENT NAMES");
+
+        for (EventBase registeredEvent : registeredEvents) {
+            System.out.println(registeredEvent.eventKey());
+        }
+
         return List.copyOf(registeredEvents.stream().map(EventBase::eventKey).toList());
     }
 
@@ -159,7 +167,7 @@ public class EventTracker {
      * @param event  event to register
      */
     public static void registerEvent(EventBase event) {
-
+        System.out.println("REGISTERING : " + event.eventKey());
         registeredEvents.add(event);
     }
 
