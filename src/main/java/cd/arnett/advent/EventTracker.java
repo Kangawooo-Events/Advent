@@ -1,6 +1,7 @@
 package cd.arnett.advent;
 
 import cd.arnett.advent.events.EventBase;
+import cd.arnett.advent.events.modules.EventModule;
 import cd.arnett.advent.events.types.LobbyEventBase;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -28,6 +29,14 @@ public class EventTracker {
      * Tracks what events players are playing in
      */
     static HashMap<UUID, EventBase> playingEvents = new HashMap<>();
+
+    /**
+     * Tracks what persistent modules a player is tied to
+     */
+    static HashMap<UUID, EventModule> activePersistentModules = new HashMap<>();
+    static HashSet<Class<? extends EventModule>> registeredPersistentModules = new HashSet<>();
+
+
     static EventBase hubEvent = null;
     static EventBase devEvent = null;
     static EventBase adminEvent = null;
@@ -186,6 +195,15 @@ public class EventTracker {
             }
         });
 
+    }
+
+    /**
+     * Tracks the given Persistent Module type to allow the use of @OnLeavePersistence
+     * @param persistentModuleType Interface extending EventModule
+     */
+    public static void registerPersistentModuleType(Class<? extends EventModule> persistentModuleType)
+    {
+        registeredPersistentModules.add(persistentModuleType);
     }
 
 
